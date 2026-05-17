@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>dev.pux4j</groupId>
+    <artifactId>pux4j-native</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>pux4j :: Native Image Builds</name>
+    <description>
+        GraalVM aarch64 native image builds for pux4j smoke test and hardware validation test.
+        Depends on pux4j-ui JVM artifacts — run 'mvn install -DskipTests' on pux4j-ui first.
+
+        Invocation requires two profiles: one app profile and one target profile.
+          mvn package -P smoke,hat-2in9v2
+          mvn package -P validation,hat-2in13v4
+
+        The sysroot property must also be set (done automatically by deploy-native.sh):
+          mvn package -P smoke,hat-2in9v2 -Dsysroot=/path/to/aarch64/sysroot
+    </description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>25</maven.compiler.release>
+
+        <!-- Keep in sync with pux4j-ui/pom.xml -->
+        <pux4j.version>0.1.0-SNAPSHOT</pux4j.version>
+        <pi4j.version>4.0.1</pi4j.version>
+        <slf4j.version>2.0.16</slf4j.version>
+        <logback.version>1.5.12</logback.version>
+        <jakarta.json.version>2.1.3</jakarta.json.version>
+        <parsson.version>1.1.7</parsson.version>
+
+        <!-- Set by app profile; native build is skipped unless an app profile is active -->
+        <native.main.class>PROFILE_REQUIRED</native.main.class>
+        <native.image.name>pux4j-native-PROFILE_REQUIRED</native.image.name>
+        <skip.native.build>true</skip.native.build>
+
+        <!-- Set by target profile; UNKNOWN signals that the target profile is missing -->
+        <native.target.suffix>UNKNOWN</native.target.suffix>
+
+        <!-- Cross-compile sysroot: set by deploy-native.sh via -Dsysroot=...
+             Defaults to host root so the pom.xml is valid without the flag,
+             though cross-compilation will produce an incorrect binary without it. -->
+        <sysroot>/</sysroot>
+
+        <!-- Plugin versions -->
+        <native.maven.plugin.version>0.11.4</native.maven.plugin.version>
+        <exec.maven.plugin.version>3.5.0</exec.maven.plugin.version>
+        <dependency.maven.plugin.version>3.8.1</dependency.maven.plugin.version>
+        <maven.compiler.version>3.13.0</maven.compiler.version>
+    </properties>
+
+    <repositories>
+        <!-- GitHub Packages: pi4j-ffm-metadata-bookworm-graal25 -->
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/lofthouse-dev/pi4j-graalvm-metadata</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!-- pux4j-ui modules: install pux4j-ui to local ~/.m2 first -->
+        <dependency>
+            <groupId>dev.pux4j.ui</groupId>
+            <artifactId>pux4j-core</artifactId>
+            <version>${pux4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.pux4j.ui</groupId>
+            <artifactId>pux4j-transform</artifactId>
+            <version>${pux4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.pux4j.ui</groupId>
+            <artifactId>pux4j-validation</artifactId>
+            <version>${pux4j.version}</version>
+        </dependency>
+
+        <!-- Pi4J: SPI and I2C providers -->
+        <dependency>
+            <groupId>com.pi4j</groupId>
+            <artifactId>pi4j-core</artifactId>
+            <version>${pi4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.pi4j</groupId>
+            <artifactId>pi4j-plugin-ffm</artifactId>
+            <version>${pi4j.version}</version>
+        </dependency>
+
+        <!-- GraalVM reachability metadata for Pi4J FFM downcalls.
+             Zero-code JAR; native-image auto-discovers META-INF/native-image/ from classpath. -->
+        <dependency>
+            <groupId>dev.lofthouse.pi4j</groupId>
+            <artifactId>pi4j-ffm-metadata-bookworm-graal25</artifactId>
+            <version>4.0.1-0</version>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
+        </dependency>
+
+        <!-- Jakarta JSON-P -->
+        <dependency>
+            <groupId>jakarta.json</groupId>
+            <artifactId>jakarta.json-api</artifactId>
+            <version>${jakarta.json.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.parsson</groupId>
+            <artifactId>parsson</artifactId>
+            <version>${parsson.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven.compiler.version}</version>
+                <configuration>
+                    <release>25</release>
+                    <compilerArgs>
+                        <arg>--enable-preview</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+
+            <!-- Collect runtime JARs into target/deps/ for CAP cache generation.
+                 Runs only when an app profile is active (skip.native.build controls skip). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>${dependency.maven.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>copy-runtime-deps</id>
+                        <phase>prepare-package</phase>
+                        <goals><goal>copy-dependencies</goal></goals>
+                        <configuration>
+                            <skip>${skip.native.build}</skip>
+                            <outputDirectory>${project.build.directory}/deps</outputDirectory>
+                            <includeScope>runtime</includeScope>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Generate CAP cache inside an arm64 QEMU Podman container before the native
+                 image build. The CAP cache stores aarch64 C type layout data (struct sizes,
+                 alignments) needed for cross-compilation. Generated once and reused until
+                 mvn clean, a GraalVM upgrade, or a bookworm glibc update. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>${exec.maven.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>gen-cap-cache</id>
+                        <phase>package</phase>
+                        <goals><goal>exec</goal></goals>
+                        <configuration>
+                            <skip>${skip.native.build}</skip>
+                            <executable>${project.basedir}/scripts/generate-cap-cache.sh</executable>
+                            <arguments>
+                                <argument>--skip-collect</argument>
+                                <argument>--cap-cache-dir=${project.build.directory}/cap-cache</argument>
+                                <argument>--deps-dir=${project.build.directory}/deps</argument>
+                                <argument>--main-class=${native.main.class}</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- GraalVM aarch64 native image (cross-compile via sysroot from graalvm-pi-builder).
+                 Runs only when an app profile is active. -->
+            <plugin>
+                <groupId>org.graalvm.buildtools</groupId>
+                <artifactId>native-maven-plugin</artifactId>
+                <version>${native.maven.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <goals><goal>compile-no-fork</goal></goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <skip>${skip.native.build}</skip>
+                    <imageName>${native.image.name}</imageName>
+                    <mainClass>${native.main.class}</mainClass>
+                    <buildArgs>
+                        <!-- Required when cross-compiling to aarch64 on x86_64:
+                             fixes ClassCastException in ForeignFunctionsFeature. -->
+                        <buildArg>-J-Djdk.internal.foreign.CABI=LINUX_AARCH_64</buildArg>
+                        <!-- pux4j-ui is compiled with enable-preview;
+                             native-image must be able to process those class files. -->
+                        <buildArg>-J--enable-preview</buildArg>
+                        <buildArg>--enable-preview</buildArg>
+                        <!-- Cross-compile target -->
+                        <buildArg>--target=linux-aarch64</buildArg>
+                        <buildArg>--native-compiler-path=/usr/bin/aarch64-linux-gnu-gcc</buildArg>
+                        <buildArg>--native-compiler-options=--sysroot=${sysroot}</buildArg>
+                        <!-- Required to use CAPCacheDir without a deprecation error -->
+                        <buildArg>-H:+UnlockExperimentalVMOptions</buildArg>
+                        <!-- CAP cache: populated by generate-cap-cache.sh (exec-maven-plugin)
+                             before this build runs. -->
+                        <buildArg>-H:CAPCacheDir=${project.build.directory}/cap-cache</buildArg>
+                        <buildArg>-H:CLibraryPath=${sysroot}/usr/lib/aarch64-linux-gnu</buildArg>
+                        <!-- Pi4J FFM backend requires native access -->
+                        <buildArg>--enable-native-access=ALL-UNNAMED</buildArg>
+                    </buildArgs>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- ===== App profiles ===== -->
+        <!-- Select the main class and enable native image build.
+             Always combine with a target profile: -P smoke,hat-2in9v2 -->
+
+        <profile>
+            <id>smoke</id>
+            <properties>
+                <native.main.class>dev.pux4j.ui.validation.DisplaySmokeTest</native.main.class>
+                <native.image.name>pux4j-smoke-test-${native.target.suffix}-native</native.image.name>
+                <skip.native.build>false</skip.native.build>
+            </properties>
+        </profile>
+
+        <profile>
+            <id>validation</id>
+            <properties>
+                <native.main.class>dev.pux4j.ui.validation.HardwareValidationTest</native.main.class>
+                <native.image.name>pux4j-validation-test-${native.target.suffix}-native</native.image.name>
+                <skip.native.build>false</skip.native.build>
+            </properties>
+        </profile>
+
+        <!-- ===== Target profiles ===== -->
+        <!-- Add the HAT-specific driver module and set the binary name suffix.
+             Always combine with an app profile: -P smoke,hat-2in9v2 -->
+
+        <profile>
+            <id>hat-2in9v2</id>
+            <properties>
+                <native.target.suffix>hat-2in9v2</native.target.suffix>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>dev.pux4j.ui</groupId>
+                    <artifactId>pux4j-driver-hat-2in9v2</artifactId>
+                    <version>${pux4j.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <profile>
+            <id>hat-2in13v4</id>
+            <properties>
+                <native.target.suffix>hat-2in13v4</native.target.suffix>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>dev.pux4j.ui</groupId>
+                    <artifactId>pux4j-driver-hat-2in13v4</artifactId>
+                    <version>${pux4j.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
+</project>
