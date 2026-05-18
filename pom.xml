@@ -11,14 +11,15 @@
 
     <name>pux4j :: Native Image Builds</name>
     <description>
-        GraalVM aarch64 native image builds for pux4j smoke test and hardware validation test.
+        GraalVM native image builds for pux4j applications.
         Depends on pux4j-ui JVM artifacts — run 'mvn install -DskipTests' on pux4j-ui first.
 
         Invocation requires two profiles: one app profile and one target profile.
-          mvn package -P smoke,hat-2in9v2
-          mvn package -P validation,hat-2in13v4
+          mvn package -P smoke,hat-2in9v2          (aarch64 cross-compile)
+          mvn package -P validation,hat-2in13v4    (aarch64 cross-compile)
+          mvn package -P demo,x86_64               (x86_64 native, no sysroot)
 
-        The sysroot property must also be set (done automatically by deploy-native.sh):
+        For aarch64 targets the sysroot property must also be set (done by deploy-native.sh):
           mvn package -P smoke,hat-2in9v2 -Dsysroot=/path/to/aarch64/sysroot
     </description>
 
@@ -29,6 +30,7 @@
         <!-- Keep in sync with pux4j-ui/pom.xml -->
         <pux4j.version>0.1.0-SNAPSHOT</pux4j.version>
         <pi4j.version>4.0.1</pi4j.version>
+        <javafx.version>23.0.1</javafx.version>
         <slf4j.version>2.0.16</slf4j.version>
         <logback.version>1.5.12</logback.version>
         <jakarta.json.version>2.1.3</jakarta.json.version>
@@ -250,9 +252,91 @@
             </properties>
         </profile>
 
+        <profile>
+            <id>demo</id>
+            <properties>
+                <native.main.class>dev.pux4j.ui.demo.DemoApp</native.main.class>
+                <native.image.name>pux4j-demo</native.image.name>
+                <skip.native.build>false</skip.native.build>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>dev.pux4j.ui</groupId>
+                    <artifactId>pux4j-demo</artifactId>
+                    <version>${pux4j.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>dev.pux4j.ui</groupId>
+                    <artifactId>pux4j-fx</artifactId>
+                    <version>${pux4j.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-base</artifactId>
+                    <version>${javafx.version}</version>
+                    <classifier>linux</classifier>
+                </dependency>
+                <dependency>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-graphics</artifactId>
+                    <version>${javafx.version}</version>
+                    <classifier>linux</classifier>
+                </dependency>
+                <dependency>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-controls</artifactId>
+                    <version>${javafx.version}</version>
+                    <classifier>linux</classifier>
+                </dependency>
+                <dependency>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-fxml</artifactId>
+                    <version>${javafx.version}</version>
+                    <classifier>linux</classifier>
+                </dependency>
+            </dependencies>
+        </profile>
+
         <!-- ===== Target profiles ===== -->
         <!-- Add the HAT-specific driver module and set the binary name suffix.
              Always combine with an app profile: -P smoke,hat-2in9v2 -->
+
+        <!-- x86_64: native build on the local machine (no cross-compilation, no sysroot,
+             no CAP cache). Use with the demo profile: -P demo,x86_64 -->
+        <profile>
+            <id>x86_64</id>
+            <build>
+                <plugins>
+                    <!-- CAP cache is aarch64-only; unbind the generation execution -->
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>gen-cap-cache</id>
+                                <phase>none</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!-- Replace aarch64 cross-compile buildArgs with x86_64 native args -->
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <configuration>
+                            <buildArgs>
+                                <!-- pux4j-ui is compiled with enable-preview;
+                                     native-image must process those class files. -->
+                                <buildArg>-J--enable-preview</buildArg>
+                                <buildArg>--enable-preview</buildArg>
+                                <!-- JavaFX graphics module uses native access -->
+                                <buildArg>--enable-native-access=ALL-UNNAMED</buildArg>
+                                <buildArg>-H:+UnlockExperimentalVMOptions</buildArg>
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
 
         <profile>
             <id>hat-2in9v2</id>
