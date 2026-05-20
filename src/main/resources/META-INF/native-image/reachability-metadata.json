@@ -1352,12 +1352,6 @@
       "glob": "META-INF/services/javax.xml.stream.XMLInputFactory"
     },
     {
-      "glob": "com/sun/javafx/tk/quantum/QuantumMessagesBundle_en.properties"
-    },
-    {
-      "glob": "com/sun/javafx/tk/quantum/QuantumMessagesBundle_en_GB.properties"
-    },
-    {
       "module": "dev.pux4j.ui.demo",
       "glob": "dev/pux4j/ui/demo/demo.css"
     },
@@ -1465,22 +1459,6 @@
       "module": "javafx.graphics",
       "glob": "libprism_sw.so"
     },
-    {"glob": "libglass.so"},
-    {"glob": "libglassgtk3.so"},
-    {"glob": "libjavafx_font.so"},
-    {"glob": "libjavafx_font_freetype.so"},
-    {"glob": "libjavafx_font_pango.so"},
-    {"glob": "libdecora_sse.so"},
-    {"glob": "libjavafx_iio.so"},
-    {"glob": "libprism_common.so"},
-    {"glob": "libprism_es2.so"},
-    {"glob": "libprism_sw.so"},
-    {"glob": "com/sun/prism/es2/glsl/**"},
-    {"glob": "com/sun/scenario/effect/impl/es2/glsl/**"},
-    {"glob": "com/sun/javafx/scene/control/skin/modena/modena.bss"},
-    {"glob": "com/sun/javafx/scene/control/skin/modena/modena.css"},
-    {"glob": "dev/pux4j/ui/demo/demo.css"},
-    {"glob": "dev/pux4j/ui/demo/demo.fxml"},
     {
       "bundle": "com.sun.javafx.tk.quantum.QuantumMessagesBundle"
     }

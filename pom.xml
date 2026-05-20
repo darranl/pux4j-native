@@ -328,8 +328,21 @@
                                      native-image must process those class files. -->
                                 <buildArg>-J--enable-preview</buildArg>
                                 <buildArg>--enable-preview</buildArg>
-                                <!-- JavaFX graphics module uses native access -->
-                                <buildArg>--enable-native-access=ALL-UNNAMED</buildArg>
+                                <!-- Named module mode: deps in target/deps/ (populated by
+                                     maven-dependency-plugin) are put on the module path so
+                                     JavaFX JARs are named modules. The demo module is added as
+                                     the root; its transitive requires (javafx.graphics etc.)
+                                     are resolved automatically. The main class is still looked
+                                     up by the plugin via classpath — native-maven-plugin 0.11.4
+                                     does not support module/class notation in <mainClass>. -->
+                                <!-- native-image requires space-separated form for these options;
+                                     the equals-sign form is not recognised and causes a parse error -->
+                                <buildArg>--module-path</buildArg>
+                                <buildArg>${project.build.directory}/deps</buildArg>
+                                <buildArg>--add-modules</buildArg>
+                                <buildArg>dev.pux4j.ui.demo</buildArg>
+                                <!-- Only javafx.graphics needs native access for glass/prism libs -->
+                                <buildArg>--enable-native-access=javafx.graphics</buildArg>
                                 <buildArg>-H:+UnlockExperimentalVMOptions</buildArg>
                             </buildArgs>
                         </configuration>
