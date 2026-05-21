@@ -624,6 +624,40 @@
       ]
     },
     {
+      "type": "com.sun.pisces.AbstractSurface",
+      "jniAccessible": true,
+      "fields": [
+        {"name": "nativePtr"}
+      ]
+    },
+    {
+      "type": "com.sun.pisces.JavaSurface",
+      "jniAccessible": true,
+      "fields": [
+        {"name": "dataInt"}
+      ]
+    },
+    {
+      "type": "com.sun.pisces.PiscesRenderer",
+      "jniAccessible": true,
+      "fields": [
+        {"name": "nativePtr"},
+        {"name": "surface"}
+      ]
+    },
+    {
+      "type": "com.sun.pisces.Transform6",
+      "jniAccessible": true,
+      "fields": [
+        {"name": "m00"},
+        {"name": "m01"},
+        {"name": "m10"},
+        {"name": "m11"},
+        {"name": "m02"},
+        {"name": "m12"}
+      ]
+    },
+    {
       "type": "com.sun.prism.GraphicsPipeline",
       "methods": [
         {
@@ -768,6 +802,78 @@
       ]
     },
     {
+      "type": "com.sun.scenario.effect.impl.prism.sw.PSWRenderer",
+      "methods": [
+        {
+          "name": "createRenderer",
+          "parameterTypes": [
+            "com.sun.scenario.effect.FilterContext"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.scenario.effect.impl.sw.java.JSWRendererDelegate",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.scenario.effect.impl.sw.sse.SSEBoxBlurPeer",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "com.sun.scenario.effect.FilterContext",
+            "com.sun.scenario.effect.impl.Renderer",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.scenario.effect.impl.sw.sse.SSEBoxShadowPeer",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "com.sun.scenario.effect.FilterContext",
+            "com.sun.scenario.effect.impl.Renderer",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.scenario.effect.impl.sw.sse.SSELinearConvolvePeer",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "com.sun.scenario.effect.FilterContext",
+            "com.sun.scenario.effect.impl.Renderer",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.scenario.effect.impl.sw.sse.SSELinearConvolveShadowPeer",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "com.sun.scenario.effect.FilterContext",
+            "com.sun.scenario.effect.impl.Renderer",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
       "type": "com.sun.scenario.effect.impl.prism.ps.PPSLinearConvolveShadowPeer",
       "methods": [
         {
@@ -841,6 +947,41 @@
           "name": "onIncrement",
           "parameterTypes": []
         }
+      ]
+    },
+    {
+      "type": "java.lang.ArrayIndexOutOfBoundsException",
+      "jniAccessible": true,
+      "methods": [
+        {"name": "<init>", "parameterTypes": ["java.lang.String"]}
+      ]
+    },
+    {
+      "type": "java.lang.IllegalArgumentException",
+      "jniAccessible": true,
+      "methods": [
+        {"name": "<init>", "parameterTypes": ["java.lang.String"]}
+      ]
+    },
+    {
+      "type": "java.lang.IllegalStateException",
+      "jniAccessible": true,
+      "methods": [
+        {"name": "<init>", "parameterTypes": ["java.lang.String"]}
+      ]
+    },
+    {
+      "type": "java.lang.NullPointerException",
+      "jniAccessible": true,
+      "methods": [
+        {"name": "<init>", "parameterTypes": ["java.lang.String"]}
+      ]
+    },
+    {
+      "type": "java.lang.OutOfMemoryError",
+      "jniAccessible": true,
+      "methods": [
+        {"name": "<init>", "parameterTypes": ["java.lang.String"]}
       ]
     },
     {

@@ -18,6 +18,7 @@
           mvn package -P smoke,hat-2in9v2          (aarch64 cross-compile)
           mvn package -P validation,hat-2in13v4    (aarch64 cross-compile)
           mvn package -P demo,x86_64               (x86_64 native, no sysroot)
+          mvn package -P demo,aarch64              (aarch64 cross-compile, no hardware driver)
 
         For aarch64 targets the sysroot property must also be set (done by deploy-native.sh):
           mvn package -P smoke,hat-2in9v2 -Dsysroot=/path/to/aarch64/sysroot
@@ -54,6 +55,21 @@
         <exec.maven.plugin.version>3.5.0</exec.maven.plugin.version>
         <dependency.maven.plugin.version>3.8.1</dependency.maven.plugin.version>
         <maven.compiler.version>3.13.0</maven.compiler.version>
+
+        <!-- JavaFX platform classifier: linux-aarch64 for cross-compile (default);
+             overridden to linux by the x86_64 profile. -->
+        <javafx.classifier>linux-aarch64</javafx.classifier>
+
+        <!-- Classifier to exclude when copying runtime deps so the module-path
+             directory never contains two versions of the same JavaFX module.
+             All OpenJFX platform JARs share one POM that lists 'linux' as a
+             transitive dependency; excluding the wrong-arch JAR prevents the
+             module conflict.  Empty by default (hat profiles don't use JavaFX). -->
+        <javafx.exclude.classifier/>
+
+        <!-- enable-native-access value: ALL-UNNAMED for Pi4J FFM apps (smoke, validation);
+             overridden to javafx.graphics by the demo profile. -->
+        <native.access.spec>ALL-UNNAMED</native.access.spec>
     </properties>
 
     <repositories>
@@ -154,8 +170,14 @@
                         <goals><goal>copy-dependencies</goal></goals>
                         <configuration>
                             <skip>${skip.native.build}</skip>
-                            <outputDirectory>${project.build.directory}/deps</outputDirectory>
+                            <outputDirectory>${project.build.directory}/deps-${native.target.suffix}</outputDirectory>
                             <includeScope>runtime</includeScope>
+                            <!-- Exclude the opposite-arch JavaFX platform JARs: all OpenJFX
+                                 platform JARs share one POM that lists 'linux' (x86_64) as a
+                                 transitive dep.  Without this exclusion, both linux and
+                                 linux-aarch64 JARs end up in the directory, causing a module
+                                 conflict on the module-path. -->
+                            <excludeClassifiers>${javafx.exclude.classifier}</excludeClassifiers>
                         </configuration>
                     </execution>
                 </executions>
@@ -180,7 +202,7 @@
                             <arguments>
                                 <argument>--skip-collect</argument>
                                 <argument>--cap-cache-dir=${project.build.directory}/cap-cache</argument>
-                                <argument>--deps-dir=${project.build.directory}/deps</argument>
+                                <argument>--deps-dir=${project.build.directory}/deps-${native.target.suffix}</argument>
                                 <argument>--main-class=${native.main.class}</argument>
                             </arguments>
                         </configuration>
@@ -221,8 +243,9 @@
                              before this build runs. -->
                         <buildArg>-H:CAPCacheDir=${project.build.directory}/cap-cache</buildArg>
                         <buildArg>-H:CLibraryPath=${sysroot}/usr/lib/aarch64-linux-gnu</buildArg>
-                        <!-- Pi4J FFM backend requires native access -->
-                        <buildArg>--enable-native-access=ALL-UNNAMED</buildArg>
+                        <!-- Pi4J FFM backend requires native access (ALL-UNNAMED for smoke/validation;
+                             overridden to javafx.graphics by the demo profile). -->
+                        <buildArg>--enable-native-access=${native.access.spec}</buildArg>
                     </buildArgs>
                 </configuration>
             </plugin>
@@ -256,8 +279,10 @@
             <id>demo</id>
             <properties>
                 <native.main.class>dev.pux4j.ui.demo.DemoApp</native.main.class>
-                <native.image.name>pux4j-demo</native.image.name>
+                <native.image.name>pux4j-demo-${native.target.suffix}</native.image.name>
                 <skip.native.build>false</skip.native.build>
+                <!-- JavaFX is a named module; only it needs native access. -->
+                <native.access.spec>javafx.graphics</native.access.spec>
             </properties>
             <dependencies>
                 <dependency>
@@ -274,27 +299,47 @@
                     <groupId>org.openjfx</groupId>
                     <artifactId>javafx-base</artifactId>
                     <version>${javafx.version}</version>
-                    <classifier>linux</classifier>
+                    <classifier>${javafx.classifier}</classifier>
                 </dependency>
                 <dependency>
                     <groupId>org.openjfx</groupId>
                     <artifactId>javafx-graphics</artifactId>
                     <version>${javafx.version}</version>
-                    <classifier>linux</classifier>
+                    <classifier>${javafx.classifier}</classifier>
                 </dependency>
                 <dependency>
                     <groupId>org.openjfx</groupId>
                     <artifactId>javafx-controls</artifactId>
                     <version>${javafx.version}</version>
-                    <classifier>linux</classifier>
+                    <classifier>${javafx.classifier}</classifier>
                 </dependency>
                 <dependency>
                     <groupId>org.openjfx</groupId>
                     <artifactId>javafx-fxml</artifactId>
                     <version>${javafx.version}</version>
-                    <classifier>linux</classifier>
+                    <classifier>${javafx.classifier}</classifier>
                 </dependency>
             </dependencies>
+            <build>
+                <plugins>
+                    <!-- Add module-path so JavaFX JARs are named modules, not classpath.
+                         combine.children="append" adds these args after the base args (which
+                         carry the cross-compile flags for aarch64); the x86_64 profile replaces
+                         the entire buildArgs list so these are only live for aarch64 demo. -->
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <configuration>
+                            <buildArgs combine.children="append">
+                                <buildArg>--module-path</buildArg>
+                                <buildArg>${project.build.directory}/deps-${native.target.suffix}</buildArg>
+                                <buildArg>--add-modules</buildArg>
+                                <buildArg>dev.pux4j.ui.demo</buildArg>
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
 
         <!-- ===== Target profiles ===== -->
@@ -305,6 +350,11 @@
              no CAP cache). Use with the demo profile: -P demo,x86_64 -->
         <profile>
             <id>x86_64</id>
+            <properties>
+                <native.target.suffix>x86_64</native.target.suffix>
+                <javafx.classifier>linux</javafx.classifier>
+                <javafx.exclude.classifier>linux-aarch64</javafx.exclude.classifier>
+            </properties>
             <build>
                 <plugins>
                     <!-- CAP cache is aarch64-only; unbind the generation execution -->
@@ -318,12 +368,15 @@
                             </execution>
                         </executions>
                     </plugin>
-                    <!-- Replace aarch64 cross-compile buildArgs with x86_64 native args -->
+                    <!-- Replace aarch64 cross-compile buildArgs with x86_64 native args.
+                         combine.self="override" is required because the demo profile uses
+                         combine.children="append" — without this, Maven would accumulate
+                         rather than replace the list. -->
                     <plugin>
                         <groupId>org.graalvm.buildtools</groupId>
                         <artifactId>native-maven-plugin</artifactId>
                         <configuration>
-                            <buildArgs>
+                            <buildArgs combine.self="override">
                                 <!-- pux4j-ui is compiled with enable-preview;
                                      native-image must process those class files. -->
                                 <buildArg>-J--enable-preview</buildArg>
@@ -338,7 +391,7 @@
                                 <!-- native-image requires space-separated form for these options;
                                      the equals-sign form is not recognised and causes a parse error -->
                                 <buildArg>--module-path</buildArg>
-                                <buildArg>${project.build.directory}/deps</buildArg>
+                                <buildArg>${project.build.directory}/deps-${native.target.suffix}</buildArg>
                                 <buildArg>--add-modules</buildArg>
                                 <buildArg>dev.pux4j.ui.demo</buildArg>
                                 <!-- Only javafx.graphics needs native access for glass/prism libs -->
@@ -349,6 +402,17 @@
                     </plugin>
                 </plugins>
             </build>
+        </profile>
+
+        <!-- aarch64: cross-compile target for the demo app (no hardware driver).
+             The base pom already provides all cross-compile machinery (sysroot,
+             target linux-aarch64, CAP cache); this profile only sets the suffix. -->
+        <profile>
+            <id>aarch64</id>
+            <properties>
+                <native.target.suffix>aarch64</native.target.suffix>
+                <javafx.exclude.classifier>linux</javafx.exclude.classifier>
+            </properties>
         </profile>
 
         <profile>
