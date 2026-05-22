@@ -70,6 +70,10 @@
         <!-- enable-native-access value: ALL-UNNAMED for Pi4J FFM apps (smoke, validation);
              overridden to javafx.graphics by the demo profile. -->
         <native.access.spec>ALL-UNNAMED</native.access.spec>
+
+        <!-- Root module passed to native-image via the add-modules flag; set by JavaFX app
+             profiles so the x86_64 target profile override can reference the correct name. -->
+        <native.add.modules>PROFILE_REQUIRED</native.add.modules>
     </properties>
 
     <repositories>
@@ -140,6 +144,25 @@
             <groupId>org.eclipse.parsson</groupId>
             <artifactId>parsson</artifactId>
             <version>${parsson.version}</version>
+        </dependency>
+
+        <!-- GraalVM native image substitution annotations.
+             Extracted from org.graalvm.nativeimage.jmod in GraalVM CE 25.0.2.
+             Used only at compile time to write @TargetClass/@Substitute classes. -->
+        <dependency>
+            <groupId>org.graalvm.sdk</groupId>
+            <artifactId>nativeimage-annotations</artifactId>
+            <version>25.0.2-graalce</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- JavaFX graphics (unclassified linux) — provides ConditionalFeature used in substitutions.
+             Compile-time only; the OS-classified JAR is added by each app profile. -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-graphics</artifactId>
+            <version>${javafx.version}</version>
+            <classifier>linux</classifier>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 
@@ -283,6 +306,7 @@
                 <skip.native.build>false</skip.native.build>
                 <!-- JavaFX is a named module; only it needs native access. -->
                 <native.access.spec>javafx.graphics</native.access.spec>
+                <native.add.modules>dev.pux4j.ui.demo</native.add.modules>
             </properties>
             <dependencies>
                 <dependency>
@@ -334,7 +358,70 @@
                                 <buildArg>--module-path</buildArg>
                                 <buildArg>${project.build.directory}/deps-${native.target.suffix}</buildArg>
                                 <buildArg>--add-modules</buildArg>
-                                <buildArg>dev.pux4j.ui.demo</buildArg>
+                                <buildArg>${native.add.modules}</buildArg>
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>dice-demo</id>
+            <properties>
+                <native.main.class>dev.pux4j.ui.dice.demo.DiceDemoApp</native.main.class>
+                <native.image.name>pux4j-dice-demo-${native.target.suffix}</native.image.name>
+                <skip.native.build>false</skip.native.build>
+                <native.access.spec>javafx.graphics</native.access.spec>
+                <native.add.modules>dev.pux4j.ui.dice.demo</native.add.modules>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>dev.pux4j.ui</groupId>
+                    <artifactId>pux4j-dice-demo</artifactId>
+                    <version>${pux4j.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>dev.pux4j.ui</groupId>
+                    <artifactId>pux4j-fx</artifactId>
+                    <version>${pux4j.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-base</artifactId>
+                    <version>${javafx.version}</version>
+                    <classifier>${javafx.classifier}</classifier>
+                </dependency>
+                <dependency>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-graphics</artifactId>
+                    <version>${javafx.version}</version>
+                    <classifier>${javafx.classifier}</classifier>
+                </dependency>
+                <dependency>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-controls</artifactId>
+                    <version>${javafx.version}</version>
+                    <classifier>${javafx.classifier}</classifier>
+                </dependency>
+                <dependency>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-fxml</artifactId>
+                    <version>${javafx.version}</version>
+                    <classifier>${javafx.classifier}</classifier>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <configuration>
+                            <buildArgs combine.children="append">
+                                <buildArg>--module-path</buildArg>
+                                <buildArg>${project.build.directory}/deps-${native.target.suffix}</buildArg>
+                                <buildArg>--add-modules</buildArg>
+                                <buildArg>${native.add.modules}</buildArg>
                             </buildArgs>
                         </configuration>
                     </plugin>
@@ -393,9 +480,9 @@
                                 <buildArg>--module-path</buildArg>
                                 <buildArg>${project.build.directory}/deps-${native.target.suffix}</buildArg>
                                 <buildArg>--add-modules</buildArg>
-                                <buildArg>dev.pux4j.ui.demo</buildArg>
+                                <buildArg>${native.add.modules}</buildArg>
                                 <!-- Only javafx.graphics needs native access for glass/prism libs -->
-                                <buildArg>--enable-native-access=javafx.graphics</buildArg>
+                                <buildArg>--enable-native-access=${native.access.spec}</buildArg>
                                 <buildArg>-H:+UnlockExperimentalVMOptions</buildArg>
                             </buildArgs>
                         </configuration>
