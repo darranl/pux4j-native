@@ -10,6 +10,12 @@
     },
     {
       "glob": "META-INF/services/javax.xml.stream.XMLInputFactory"
-    }
+    },
+    {"glob": "icons/cat.png"},
+    {"glob": "icons/dog.png"},
+    {"glob": "icons/fish.png"},
+    {"glob": "icons/ice-cream.png"},
+    {"glob": "icons/burger.png"},
+    {"glob": "icons/Pux.png"}
   ]
 }
