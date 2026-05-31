@@ -55,6 +55,7 @@
         <exec.maven.plugin.version>3.5.0</exec.maven.plugin.version>
         <dependency.maven.plugin.version>3.8.1</dependency.maven.plugin.version>
         <maven.compiler.version>3.13.0</maven.compiler.version>
+        <graalvm.sdk.version>25.0.2</graalvm.sdk.version>
 
         <!-- JavaFX platform classifier: linux-aarch64 for cross-compile (default);
              overridden to linux by the x86_64 profile. -->
@@ -146,13 +147,12 @@
             <version>${parsson.version}</version>
         </dependency>
 
-        <!-- GraalVM native image substitution annotations.
-             Extracted from org.graalvm.nativeimage.jmod in GraalVM CE 25.0.2.
-             Used only at compile time to write @TargetClass/@Substitute classes. -->
+        <!-- GraalVM Native Image hosted API used by substitution classes.
+             Use the published Maven artifact and avoid local jmod extraction steps. -->
         <dependency>
             <groupId>org.graalvm.sdk</groupId>
-            <artifactId>nativeimage-annotations</artifactId>
-            <version>25.0.2-graalce</version>
+            <artifactId>nativeimage</artifactId>
+            <version>${graalvm.sdk.version}</version>
             <scope>provided</scope>
         </dependency>
         <!-- JavaFX graphics (unclassified linux) — provides ConditionalFeature used in substitutions.
