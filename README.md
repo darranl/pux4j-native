@@ -43,6 +43,29 @@ sdk install java 25.0.2-graalce
 sdk use java 25.0.2-graalce
 ```
 
+## Cross-compilation prerequisites
+
+Cross-compilation uses the `graalvm-pi-builder` container image, which provides a Debian
+bookworm arm64 sysroot with GraalVM CE 25 and the aarch64 cross-compiler.
+
+**Container image:** `ghcr.io/lofthouse-dev/graalvm-pi-builder:bookworm-graal25`
+
+Pull it:
+```bash
+podman pull ghcr.io/lofthouse-dev/graalvm-pi-builder:bookworm-graal25
+```
+
+**If you need to rebuild the image** (e.g. after a GraalVM version update or base OS change):
+- Source repository: `https://github.com/lofthouse-dev/graalvm-pi-builder`
+- Trigger a rebuild via GitHub Actions → **`workflow_dispatch`** on the repository's
+  build workflow. No local rebuild step is required.
+- After publishing, update the image tag in `pux4j-native/pom.xml` (`<graalvm.pi.builder.image>`
+  property or equivalent) to the new tag.
+- **Tip:** Pin the image to a digest (`@sha256:...`) for reproducible builds once the image
+  is stable.
+
+**Current GraalVM version:** CE 25.0.2 (as of the bookworm-graal25 tag).
+
 ## Build profiles
 
 Two orthogonal profile axes must always be combined:
