@@ -93,6 +93,37 @@ See "Recreation procedure" below — this is the process used tonight to add
 `smoke-emulator`/`validation-emulator` native image support, and the template for adding
 any future app/profile.
 
+### First `foreign` section — GpioChipResolver's open/ioctl/close (2026-08-30)
+
+`GpioChipResolver` (new in `pux4j-core` — Raspberry Pi 5-family boards, e.g. the Pi 500+,
+enumerate their 40-pin header GPIO chip at a higher chip number, not `/dev/gpiochip0` like
+older Pi boards) makes three raw `java.lang.foreign` downcalls — `open`, `ioctl`, `close` — to
+resolve the correct chip by label. Native image build of `smoke,hat-2in9v2` failed with
+`MissingForeignRegistrationError` for the `ioctl` downcall; GraalVM's suggested-config output
+in the exception message came back empty, so used the tracing-agent procedure below instead
+(same as every other gap in this file).
+
+**This is the first `foreign` entry in this file at all.** Every other FFM downcall this
+project makes (all of Pi4J's SPI/GPIO/I2C access) is already covered by the externally
+published `pi4j-ffm-metadata-bookworm-graal25` artifact's own bundled metadata — GraalVM scans
+every jar on the classpath for `META-INF/native-image/**/reachability-metadata.json`, not just
+this project's own. Confirmed by running the tracing agent against the already-deployed JVM
+`smoke`/`validation` dist on a Pi 5-family board (aarch64 — this driver code only loads on real hardware,
+selected via `isAvailable()`, so tracing on x86_64 wouldn't reach it): it captured 16 downcall
+signatures total, but only 3 had no `captureCallState` option — matching `GpioChipResolver`'s
+plain `FunctionDescriptor.of(...)` calls with no `Linker.Option`. The other 13 are Pi4J's own
+(it uses `captureCallState: true`, presumably for errno) and are already covered by that
+external artifact — added only the 3 that are actually new, not the whole captured set, per
+the "diff and review, don't add anything spurious" rule above. Matched by return
+type + parameter types, not by name (the `foreign` schema has no name field):
+- `{jint, [void*, jint]}` → `open(const char*, int)`
+- `{jint, [jint, jlong, void*]}` → `ioctl(int, unsigned long, void*)`
+- `{jint, [jint]}` → `close(int)`
+
+**Not yet re-verified** — need to rebuild `smoke,hat-2in9v2` and confirm the
+`MissingForeignRegistrationError` is gone, then do the same for `validation,hat-2in9v2`
+(same three downcalls, same class).
+
 ## The GraalVM version gotcha (found 2026-08-30) — read this before running `generate-metadata.sh`
 
 **`scripts/generate-metadata.sh` / `scripts/MergeMetadata.java` are currently broken against
