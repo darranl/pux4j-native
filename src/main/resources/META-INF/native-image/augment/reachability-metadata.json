@@ -16,6 +16,7 @@
     {"glob": "icons/fish.png"},
     {"glob": "icons/ice-cream.png"},
     {"glob": "icons/burger.png"},
-    {"glob": "icons/Pux.png"}
+    {"glob": "icons/Pux.png"},
+    {"bundle": "dev.pux4j.ui.validation.messages"}
   ]
 }

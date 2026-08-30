@@ -123,6 +123,13 @@ pux4j-smoke-test-hat-2in13v4 ssd1680
 pux4j-validation-test-hat-2in9v2
 ```
 
+## Metadata
+
+`reachability-metadata.json` is one shared file across every app/target profile — see
+[`metadata-notes.md`](metadata-notes.md) for its history, how to add coverage for a new
+app/profile, and a known gotcha with `scripts/generate-metadata.sh` on the currently-installed
+GraalVM version (read this before running it).
+
 ## Dependency notes
 
 - **`pux4j-ui` version** — set `<pux4j.version>` in `pom.xml` to match the installed

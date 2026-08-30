@@ -155,13 +155,15 @@
             <version>${graalvm.sdk.version}</version>
             <scope>provided</scope>
         </dependency>
-        <!-- JavaFX graphics (unclassified linux) — provides ConditionalFeature used in substitutions.
-             Compile-time only; the OS-classified JAR is added by each app profile. -->
+        <!-- JavaFX graphics (unclassified) — provides ConditionalFeature used in substitutions.
+             Compile-time only; the platform-classified JAR (with embedded native libs) is added
+             by each JavaFX app profile. Using the unclassified artifact avoids a scope conflict:
+             the profiles add javafx-graphics:<platform>:compile, which is a different Maven
+             coordinate and lands in deps-<target>/ for the module path as intended. -->
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-graphics</artifactId>
             <version>${javafx.version}</version>
-            <classifier>linux</classifier>
             <scope>provided</scope>
         </dependency>
     </dependencies>
@@ -296,6 +298,54 @@
                 <native.image.name>pux4j-validation-test-${native.target.suffix}-native</native.image.name>
                 <skip.native.build>false</skip.native.build>
             </properties>
+            <!-- Resource bundle (dev.pux4j.ui.validation.messages) is registered in
+                 augment/reachability-metadata.json and picked up automatically. -->
+        </profile>
+
+        <profile>
+            <id>smoke-emulator</id>
+            <properties>
+                <native.main.class>dev.pux4j.ui.validation.DisplaySmokeTest</native.main.class>
+                <native.image.name>pux4j-smoke-emulator-${native.target.suffix}</native.image.name>
+                <skip.native.build>false</skip.native.build>
+                <native.access.spec>javafx.graphics</native.access.spec>
+                <native.add.modules>dev.pux4j.ui.validation,dev.pux4j.ui.emulator</native.add.modules>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>dev.pux4j.ui</groupId>
+                    <artifactId>pux4j-emulator</artifactId>
+                    <version>${pux4j.version}</version>
+                    <!-- pux4j-emulator's JavaFX deps use ${javafx.platform}, which is undefined
+                         in pux4j-native and resolves to the unclassified (no native libs) JARs.
+                         Exclude them here; the profile's explicit classified deps provide the
+                         correct platform JARs with embedded native libraries. -->
+                    <exclusions>
+                        <exclusion>
+                            <groupId>org.openjfx</groupId>
+                            <artifactId>*</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+                <dependency>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-base</artifactId>
+                    <version>${javafx.version}</version>
+                    <classifier>${javafx.classifier}</classifier>
+                </dependency>
+                <dependency>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-graphics</artifactId>
+                    <version>${javafx.version}</version>
+                    <classifier>${javafx.classifier}</classifier>
+                </dependency>
+                <dependency>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-controls</artifactId>
+                    <version>${javafx.version}</version>
+                    <classifier>${javafx.classifier}</classifier>
+                </dependency>
+            </dependencies>
             <build>
                 <plugins>
                     <plugin>
@@ -303,7 +353,69 @@
                         <artifactId>native-maven-plugin</artifactId>
                         <configuration>
                             <buildArgs combine.children="append">
-                                <buildArg>-H:IncludeResourceBundles=dev.pux4j.ui.validation.messages</buildArg>
+                                <buildArg>--module-path</buildArg>
+                                <buildArg>${project.build.directory}/deps-${native.target.suffix}</buildArg>
+                                <buildArg>--add-modules</buildArg>
+                                <buildArg>${native.add.modules}</buildArg>
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>validation-emulator</id>
+            <properties>
+                <native.main.class>dev.pux4j.ui.validation.HardwareValidationTest</native.main.class>
+                <native.image.name>pux4j-validation-emulator-${native.target.suffix}</native.image.name>
+                <skip.native.build>false</skip.native.build>
+                <native.access.spec>javafx.graphics</native.access.spec>
+                <native.add.modules>dev.pux4j.ui.validation,dev.pux4j.ui.emulator</native.add.modules>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>dev.pux4j.ui</groupId>
+                    <artifactId>pux4j-emulator</artifactId>
+                    <version>${pux4j.version}</version>
+                    <!-- See smoke-emulator profile comment — same exclusion rationale. -->
+                    <exclusions>
+                        <exclusion>
+                            <groupId>org.openjfx</groupId>
+                            <artifactId>*</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+                <dependency>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-base</artifactId>
+                    <version>${javafx.version}</version>
+                    <classifier>${javafx.classifier}</classifier>
+                </dependency>
+                <dependency>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-graphics</artifactId>
+                    <version>${javafx.version}</version>
+                    <classifier>${javafx.classifier}</classifier>
+                </dependency>
+                <dependency>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-controls</artifactId>
+                    <version>${javafx.version}</version>
+                    <classifier>${javafx.classifier}</classifier>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <configuration>
+                            <buildArgs combine.children="append">
+                                <buildArg>--module-path</buildArg>
+                                <buildArg>${project.build.directory}/deps-${native.target.suffix}</buildArg>
+                                <buildArg>--add-modules</buildArg>
+                                <buildArg>${native.add.modules}</buildArg>
                             </buildArgs>
                         </configuration>
                     </plugin>

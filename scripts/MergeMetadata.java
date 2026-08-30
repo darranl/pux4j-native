@@ -127,7 +127,7 @@ public class MergeMetadata {
 
         // Normalise bundles: {"name":"..."} → {"bundle":"..."}
         JsonArrayBuilder bundleBuilder = Json.createArrayBuilder();
-        for (JsonValue b : cfg.getJsonArray("bundles", JsonValue.EMPTY_JSON_ARRAY)) {
+        for (JsonValue b : (JsonArray) cfg.getOrDefault("bundles", JsonValue.EMPTY_JSON_ARRAY)) {
             if (b instanceof JsonObject bundleObj) {
                 if (bundleObj.containsKey("name")) {
                     bundleBuilder.add(
