@@ -34,9 +34,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# ORIENTATION must match each profile's real hardware orientation exactly (see
+# dist-hat-2in9v2/dist-hat-2in13v4 in pux4j-validation/pom.xml) — Canvas builds content in
+# this orientation's coordinate space, and EmulatorDisplayProfile (pux4j-emulator) renders
+# assuming the same. Getting this wrong doesn't crash — it silently renders content rotated
+# 180 degrees from correct (found 2026-08-30 checking the ssd1680 profile specifically:
+# HardwareValidationTest's own '--orientation' default of LANDSCAPE was always used here,
+# never overridden per profile). Ported from pux4j-ui/pux4j-validation/run-validation-emulator.sh.
 case "$DISPLAY_PROFILE" in
-  ssd1675a) TOUCH_NATIVE_W=296; TOUCH_NATIVE_H=128 ;;
-  ssd1680)  TOUCH_NATIVE_W=250; TOUCH_NATIVE_H=122 ;;
+  ssd1675a) TOUCH_NATIVE_W=296; TOUCH_NATIVE_H=128; ORIENTATION="LANDSCAPE" ;;
+  ssd1680)  TOUCH_NATIVE_W=250; TOUCH_NATIVE_H=122; ORIENTATION="LANDSCAPE_INVERTED" ;;
   *)
     echo "ERROR: Unknown display profile '$DISPLAY_PROFILE'. Valid: ssd1675a, ssd1680"
     exit 1
@@ -52,6 +59,7 @@ fi
 "$BINARY" \
   -Dpux4j.emulator.display="$DISPLAY_PROFILE" \
   -Dpux4j.emulator.scale="$SCALE" \
+  --orientation "$ORIENTATION" \
   --touch-native-width "$TOUCH_NATIVE_W" \
   --touch-native-height "$TOUCH_NATIVE_H" \
   "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
