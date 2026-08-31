@@ -308,7 +308,11 @@
                 <native.main.class>dev.pux4j.ui.validation.DisplaySmokeTest</native.main.class>
                 <native.image.name>pux4j-smoke-emulator-${native.target.suffix}</native.image.name>
                 <skip.native.build>false</skip.native.build>
-                <native.access.spec>javafx.graphics</native.access.spec>
+                <!-- Both javafx.graphics (Glass/Prism native libs) and com.pi4j.plugin.ffm
+                     (Pi4J FFM downcalls) are named modules on this profile's module-path,
+                     so both need explicit native access — unlike the smoke/validation
+                     profiles, which stay on the classpath under ALL-UNNAMED. -->
+                <native.access.spec>javafx.graphics,com.pi4j.plugin.ffm</native.access.spec>
                 <native.add.modules>dev.pux4j.ui.validation,dev.pux4j.ui.emulator</native.add.modules>
             </properties>
             <dependencies>
@@ -370,7 +374,8 @@
                 <native.main.class>dev.pux4j.ui.validation.HardwareValidationTest</native.main.class>
                 <native.image.name>pux4j-validation-emulator-${native.target.suffix}</native.image.name>
                 <skip.native.build>false</skip.native.build>
-                <native.access.spec>javafx.graphics</native.access.spec>
+                <!-- See smoke-emulator profile comment — same module-path/native-access reasoning. -->
+                <native.access.spec>javafx.graphics,com.pi4j.plugin.ffm</native.access.spec>
                 <native.add.modules>dev.pux4j.ui.validation,dev.pux4j.ui.emulator</native.add.modules>
             </properties>
             <dependencies>
