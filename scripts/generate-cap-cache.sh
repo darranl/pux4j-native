@@ -26,7 +26,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-IMAGE_TAG="ghcr.io/lofthouse-dev/graalvm-pi-builder:bookworm-graal25"
+IMAGE_TAG="ghcr.io/lofthouse-dev/graalvm-pi-builder:bookworm-25.3.4.1"
 
 SKIP_COLLECT=false
 CAP_CACHE_DIR="$PROJECT_ROOT/target/cap-cache"

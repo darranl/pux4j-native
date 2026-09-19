@@ -4221,6 +4221,15 @@
     },
     {
       "type": "sun.text.resources.cldr.FormatData_en"
+    },
+    {
+      "type": "sun.net.www.protocol.jar.Handler",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
     }
   ],
   "resources": [
@@ -5225,6 +5234,12 @@
     {
       "module": "javafx.graphics",
       "glob": "com/sun/prism/es2/glsl/specular_texture.frag"
+    },
+    {
+      "glob": "com/sun/javafx/tk/quantum/QuantumMessagesBundle_en.properties"
+    },
+    {
+      "glob": "com/sun/javafx/tk/quantum/QuantumMessagesBundle_en_GB.properties"
     }
   ],
   "foreign": {

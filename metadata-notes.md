@@ -124,35 +124,49 @@ type + parameter types, not by name (the `foreign` schema has no name field):
 `MissingForeignRegistrationError` is gone, then do the same for `validation,hat-2in9v2`
 (same three downcalls, same class).
 
-## The GraalVM version gotcha (found 2026-08-30) — read this before running `generate-metadata.sh`
+## The GraalVM version gotcha (found 2026-08-30, fixed 2026-09-19) — history
 
-**`scripts/generate-metadata.sh` / `scripts/MergeMetadata.java` are currently broken against
-the GraalVM version this project uses (GraalVM CE 25.0.2).**
+**`scripts/generate-metadata.sh` / `scripts/MergeMetadata.java` were broken against
+GraalVM CE 25.0.2** (the version this project used when this section was first written), and
+the same bug reproduced again on GraalVM CE 25.3.4.1 (bumped in issue
+[pux4j-native#1](https://github.com/darranl/pux4j-native/issues/1)) when `generate-metadata.sh`
+was re-run under it: it printed `"Written: ... reflection entries : 0 resource entries : 0
+bundle entries : 0 jni entries : 0"` — **looked like success** — and actually wiped
+`reachability-metadata.json` from 5253 lines down to an empty shell. Caught immediately via
+`git diff` (nothing had been committed yet) and restored with `git checkout --`.
 
-`MergeMetadata.java` was written to read the *legacy* split agent output format:
-`reflect-config.json`, `resource-config.json`, `jni-config.json`. GraalVM CE 25.0.2's
-`native-image-agent` no longer writes those files by default — it writes directly in the
-**new unified `reachability-metadata.json` schema** (top-level keys `reflection`, `resources`,
-`foreign`) into the `config-output-dir`.
+Root cause: `MergeMetadata.java` was written to read the *legacy* split agent output format —
+`reflect-config.json`, `resource-config.json`, `jni-config.json`. Neither GraalVM CE 25.0.2 nor
+25.3.4.1's `native-image-agent` writes those files by default — both write directly in the
+**unified `reachability-metadata.json` schema** (top-level keys `reflection`, `resources`,
+`foreign`) into the `config-output-dir`. Reading three files that don't exist produces empty
+arrays for everything, which is indistinguishable from "nothing new was captured" in the old
+tool's own output.
 
-The result: running `MergeMetadata.java` against a fresh trace from this GraalVM version reads
-three files that don't exist, finds empty arrays for all of them, and happily writes out
-`"Written: ...   reflection entries : 0   resource entries : 0   bundle entries : 0   jni
-entries : 0"` — **it looks like success.** If `generate-metadata.sh` were run end-to-end today
-as documented, it would silently overwrite the real `reachability-metadata.json` with an
-effectively empty file, destroying every entry described above.
+**Fixed properly, not just patched around:** `MergeMetadata.java` was rewritten from a
+format-converter into an additive, structural merge tool. It reads the agent's own
+already-unified `reachability-metadata.json` (no conversion needed — see the recreation
+procedure below, which this fix generalizes into full automation rather than a manual
+one-off) and merges it into the real file:
+- `reflection` entries are merged by `type` — methods/fields are unioned (deduped by their own
+  structural identity), boolean flags (`jniAccessible`, etc.) are OR'd, and brand-new types are
+  appended.
+- Every other array (`resources`, `foreign.downcalls`, and any future array) is deduped by full
+  structural equality and unioned, preserving existing order.
+- Every other object (`foreign`, and any future nested object) is merged key-by-key with the
+  same rules, recursively.
 
-**Do not run `scripts/generate-metadata.sh` until this is fixed.** `MergeMetadata.java` needs
-updating to detect and pass through the new unified format (or simply be skipped, since the
-agent already writes the exact file format we want — see the procedure below, which bypasses
-it entirely). Tracked as **W12** in `notes/project-plan.md`'s Technical Debt table.
+Base entries are never dropped or reordered, only extended — so a single app/profile's trace
+(which only exercises that app's own code paths) can never destroy another profile's
+previously-captured coverage (hardware-only FFM downcalls, a different app's FXML resources,
+etc.) the way a plain overwrite did. `generate-metadata.sh` is now safe to re-run after every
+relevant change without manual JSON editing — see its own header comment for the current
+behavior. Was tracked as **W12** in `notes/project-plan.md`'s Technical Debt table; now closed.
 
-A second, unrelated bug in `MergeMetadata.java` (line ~130: `cfg.getJsonArray("bundles",
+A second, unrelated bug in the old `MergeMetadata.java` (line ~130: `cfg.getJsonArray("bundles",
 JsonValue.EMPTY_JSON_ARRAY)` — `JsonObject.getJsonArray` has no such 2-argument overload in
-`jakarta.json-api` 2.1.3, confirmed via `javap` against the actual jar) was also found and
-fixed tonight (changed to `(JsonArray) cfg.getOrDefault("bundles", JsonValue.EMPTY_JSON_ARRAY)`,
-using the `Map` interface `JsonObject` extends). That fix was necessary just to get the tool to
-compile at all, and is independent of the format gotcha above.
+`jakarta.json-api` 2.1.3, confirmed via `javap` against the actual jar) is moot — that
+legacy-format code path no longer exists in the rewritten tool.
 
 ## Recreation procedure — adding coverage for a new app/profile
 
@@ -163,7 +177,7 @@ from `pux4j-native/`.
 
 1. **GraalVM CE active, `pux4j-ui` installed:**
    ```
-   sdk use java 25.0.2-graalce
+   sdk use java 25.3.4-graalce
    cd ../pux4j-ui && mvn install -DskipTests && cd -
    ```
 

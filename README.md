@@ -39,8 +39,8 @@ native images from them. Keep the two repos decoupled: changes to `pux4j-ui` req
 ### GraalVM CE 25 via SDKMAN
 
 ```bash
-sdk install java 25.0.2-graalce
-sdk use java 25.0.2-graalce
+sdk install java 25.3.4-graalce
+sdk use java 25.3.4-graalce
 ```
 
 ## Cross-compilation prerequisites
@@ -48,23 +48,24 @@ sdk use java 25.0.2-graalce
 Cross-compilation uses the `graalvm-pi-builder` container image, which provides a Debian
 bookworm arm64 sysroot with GraalVM CE 25 and the aarch64 cross-compiler.
 
-**Container image:** `ghcr.io/lofthouse-dev/graalvm-pi-builder:bookworm-graal25`
+**Container image:** `ghcr.io/lofthouse-dev/graalvm-pi-builder:bookworm-25.3.4.1`
 
-Pull it:
+Pull it (the image is arm64-only — no amd64 manifest, so `--platform` is required
+on an x86_64 host):
 ```bash
-podman pull ghcr.io/lofthouse-dev/graalvm-pi-builder:bookworm-graal25
+podman pull --platform=linux/arm64 ghcr.io/lofthouse-dev/graalvm-pi-builder:bookworm-25.3.4.1
 ```
 
 **If you need to rebuild the image** (e.g. after a GraalVM version update or base OS change):
 - Source repository: `https://github.com/lofthouse-dev/graalvm-pi-builder`
 - Trigger a rebuild via GitHub Actions → **`workflow_dispatch`** on the repository's
   build workflow. No local rebuild step is required.
-- After publishing, update the image tag in `pux4j-native/pom.xml` (`<graalvm.pi.builder.image>`
-  property or equivalent) to the new tag.
+- After publishing, update the pinned image tag in `scripts/generate-cap-cache.sh`
+  (`IMAGE_TAG`) to the new tag.
 - **Tip:** Pin the image to a digest (`@sha256:...`) for reproducible builds once the image
   is stable.
 
-**Current GraalVM version:** CE 25.0.2 (as of the bookworm-graal25 tag).
+**Current GraalVM version:** CE 25.3.4.1 (as of the bookworm-25.3.4.1 tag).
 
 ## Build profiles
 
@@ -135,7 +136,7 @@ GraalVM version (read this before running it).
 - **`pux4j-ui` version** — set `<pux4j.version>` in `pom.xml` to match the installed
   `pux4j-ui` version. Currently `0.1.0-SNAPSHOT`.
 - **`pi4j-ffm-metadata-bookworm-graal25`** — GraalVM reachability metadata for Pi4J's
-  FFM downcalls. Version `4.0.1-0` is aligned with `pi4j 4.0.1`. If `pux4j-ui` upgrades
+  FFM downcalls. Version `4.0.2-0` is aligned with `pi4j 4.0.2`. If `pux4j-ui` upgrades
   Pi4J, update this version and publish a new artifact from
   [lofthouse-dev/pi4j-graalvm-metadata](https://github.com/lofthouse-dev/pi4j-graalvm-metadata).
 - **`graalvm-pi-builder`** — source at

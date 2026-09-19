@@ -1,23 +1,27 @@
 #!/usr/bin/env bash
 # Regenerate reachability metadata by running pux4j-demo with the GraalVM tracing agent.
 #
-# The tracing agent observes all reflection, resource, and JNI accesses at runtime
-# and writes configuration files used by native-image at build time. Run this whenever
-# the demo app acquires new reflection or resource access patterns (new FXML elements,
-# new service providers, new resource paths, etc.).
+# The tracing agent observes all reflection, resource, and foreign accesses at runtime
+# and writes reachability-metadata.json directly in the format native-image consumes. Run
+# this whenever the demo app acquires new reflection or resource access patterns (new FXML
+# elements, new service providers, new resource paths, etc.).
 #
-# After the app exits the agent output is converted to the consolidated
-# reachability-metadata.json format and written to the native-image resources directory.
+# After the app exits, the freshly-captured file is ADDITIVELY MERGED (by MergeMetadata.java,
+# via jbang) into the real, committed reachability-metadata.json — never overwritten. A single
+# demo-app trace only exercises the demo's own code paths, not the smoke/validation/emulator
+# profiles' hardware or FFM access, so a plain overwrite would destroy that other coverage;
+# the merge unions reflection entries (keyed by "type"), resources, and foreign downcalls
+# instead, so re-running this after every relevant change is always safe and incremental.
 # The augment/ subdirectory (shader wildcards, service loader registrations) is left
 # untouched and continues to be picked up automatically by native-image.
 #
 # Usage:
 #   ./generate-metadata.sh [--force-prepare]
 #
-#   --force-prepare   Force re-run of 'mvn prepare-package' even if target/deps/ exists
+#   --force-prepare   Force re-run of 'mvn prepare-package' even if target/deps-x86_64/ exists
 #
 # Prerequisites:
-#   JAVA_HOME must point to GraalVM CE (sdk use java 25.0.2-graalce).
+#   JAVA_HOME must point to GraalVM CE (sdk use java 25.3.4-graalce).
 #   pux4j-ui must be installed to ~/.m2: cd pux4j-ui && mvn install -DskipTests
 #
 # What to exercise in the app:
@@ -33,7 +37,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PROJECT_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
 
 METADATA_DIR="$PROJECT_DIR/src/main/resources/META-INF/native-image"
-DEPS_DIR="$PROJECT_DIR/target/deps"
+DEPS_DIR="$PROJECT_DIR/target/deps-x86_64"
 AGENT_OUTPUT_DIR="$PROJECT_DIR/target/generated-metadata"
 OUTPUT_FILE="$METADATA_DIR/reachability-metadata.json"
 
@@ -52,13 +56,13 @@ done
 # --- Verify GraalVM ---
 if [[ -z "${JAVA_HOME:-}" ]]; then
     echo "ERROR: JAVA_HOME is not set." >&2
-    echo "  Use: sdk use java 25.0.2-graalce" >&2
+    echo "  Use: sdk use java 25.3.4-graalce" >&2
     exit 1
 fi
 if [[ ! -x "$JAVA_HOME/bin/native-image" ]]; then
     echo "ERROR: JAVA_HOME does not contain native-image: $JAVA_HOME" >&2
     echo "  JAVA_HOME must point to GraalVM CE, not a standard JDK." >&2
-    echo "  Use: sdk use java 25.0.2-graalce" >&2
+    echo "  Use: sdk use java 25.3.4-graalce" >&2
     exit 1
 fi
 if [[ ! -f "$JAVA_HOME/lib/native-image-agent.jar" ]] && \
@@ -110,7 +114,7 @@ echo ""
     -m dev.pux4j.ui.demo/dev.pux4j.ui.demo.DemoApp
 
 echo ""
-echo "==> Tracing complete. Converting agent output to reachability-metadata.json..."
+echo "==> Tracing complete. Merging into reachability-metadata.json..."
 
 jbang "$SCRIPT_DIR/MergeMetadata.java" \
     --generated "$AGENT_OUTPUT_DIR" \
@@ -120,5 +124,6 @@ echo ""
 echo "==> Done. Updated: $OUTPUT_FILE"
 echo "    augment/resource-config.json: unchanged (picked up separately by native-image)"
 echo ""
-echo "    Review the diff before committing:"
+echo "    The merge is additive only (existing entries are never removed or reordered),"
+echo "    so this is safe to commit directly. Worth a quick look anyway:"
 echo "      git diff src/main/resources/META-INF/native-image/reachability-metadata.json"
