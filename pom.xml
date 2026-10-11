@@ -65,7 +65,7 @@
              directory never contains two versions of the same JavaFX module.
              All OpenJFX platform JARs share one POM that lists 'linux' as a
              transitive dependency; excluding the wrong-arch JAR prevents the
-             module conflict.  Empty by default (hat profiles don't use JavaFX). -->
+             module conflict.  Empty by default; the aarch64 and hat-* profiles set it to linux. -->
         <javafx.exclude.classifier/>
 
         <!-- enable-native-access value: ALL-UNNAMED for Pi4J FFM apps (smoke, validation);
@@ -75,6 +75,13 @@
         <!-- Root module passed to native-image via the add-modules flag; set by JavaFX app
              profiles so the x86_64 target profile override can reference the correct name. -->
         <native.add.modules>PROFILE_REQUIRED</native.add.modules>
+
+        <!-- Extra ServiceLoader-provider modules appended to native.add.modules and extra
+             modules appended to native.access.spec. Empty by default; the hat-* profiles set
+             them (a driver module has no compile-time reference from the app, so it is only
+             in the image if named in the add-modules build arg). Start with a comma when non-empty. -->
+        <native.driver.modules/>
+        <native.access.extra/>
     </properties>
 
     <repositories>
@@ -431,17 +438,22 @@
         <profile>
             <id>demo</id>
             <properties>
-                <native.main.class>dev.pux4j.ui.demo.DemoApp</native.main.class>
-                <native.image.name>pux4j-demo-${native.target.suffix}</native.image.name>
+                <native.main.class>dev.pux4j.ui.launcher.EInkLauncher</native.main.class>
+                <native.image.name>pux4j-native-demo-${native.target.suffix}</native.image.name>
                 <skip.native.build>false</skip.native.build>
-                <!-- JavaFX is a named module; only it needs native access. -->
-                <native.access.spec>javafx.graphics</native.access.spec>
-                <native.add.modules>dev.pux4j.ui.demo</native.add.modules>
+                <!-- JavaFX is a named module and needs native access; the hat-* profiles add Pi4J FFM. -->
+                <native.access.spec>javafx.graphics${native.access.extra}</native.access.spec>
+                <native.add.modules>dev.pux4j.ui.launcher,dev.pux4j.ui.demo${native.driver.modules}</native.add.modules>
             </properties>
             <dependencies>
                 <dependency>
                     <groupId>dev.pux4j.ui</groupId>
                     <artifactId>pux4j-demo</artifactId>
+                    <version>${pux4j.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>dev.pux4j.ui</groupId>
+                    <artifactId>pux4j-launcher</artifactId>
                     <version>${pux4j.version}</version>
                 </dependency>
                 <dependency>
@@ -636,6 +648,10 @@
             <id>hat-2in9v2</id>
             <properties>
                 <native.target.suffix>hat-2in9v2</native.target.suffix>
+                <!-- Cross-compiled for aarch64: keep only the linux-aarch64 JavaFX jars. -->
+                <javafx.exclude.classifier>linux</javafx.exclude.classifier>
+                <native.driver.modules>,dev.pux4j.ui.driver.hat2in9v2,com.pi4j.plugin.ffm</native.driver.modules>
+                <native.access.extra>,com.pi4j.plugin.ffm</native.access.extra>
             </properties>
             <dependencies>
                 <dependency>
@@ -650,6 +666,10 @@
             <id>hat-2in13v4</id>
             <properties>
                 <native.target.suffix>hat-2in13v4</native.target.suffix>
+                <!-- Cross-compiled for aarch64: keep only the linux-aarch64 JavaFX jars. -->
+                <javafx.exclude.classifier>linux</javafx.exclude.classifier>
+                <native.driver.modules>,dev.pux4j.ui.driver.hat2in13v4,com.pi4j.plugin.ffm</native.driver.modules>
+                <native.access.extra>,com.pi4j.plugin.ffm</native.access.extra>
             </properties>
             <dependencies>
                 <dependency>
