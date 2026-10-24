@@ -17,8 +17,9 @@
         Invocation requires two profiles: one app profile and one target profile.
           mvn package -P smoke,hat-2in9v2          (aarch64 cross-compile)
           mvn package -P validation,hat-2in13v4    (aarch64 cross-compile)
-          mvn package -P demo,x86_64               (x86_64 native, no sysroot)
-          mvn package -P demo,aarch64              (aarch64 cross-compile, no hardware driver)
+          mvn package -P demo,x86_64               (x86_64 native, no sysroot, emulator driver)
+          mvn package -P dice-demo,x86_64          (as above, dice demo)
+          mvn package -P demo,aarch64              (aarch64 cross-compile, no display driver)
 
         For aarch64 targets the sysroot property must also be set (done by deploy-native.sh):
           mvn package -P smoke,hat-2in9v2 -Dsysroot=/path/to/aarch64/sysroot
@@ -187,6 +188,33 @@
                         <arg>--enable-preview</arg>
                     </compilerArgs>
                 </configuration>
+            </plugin>
+
+            <!-- Empty deps-<target>/ before it is repopulated, so jars left by an earlier build
+                 (another app profile, or an older dependency version such as two pi4j versions
+                 -> "Two versions of module found") never reach the module path.
+                 excludeDefaultDirectories is essential: without it this deletes all of target/.
+                 Declared before maven-dependency-plugin so it runs first in the same phase. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>clean-deps</id>
+                        <phase>prepare-package</phase>
+                        <goals><goal>clean</goal></goals>
+                        <configuration>
+                            <skip>${skip.native.build}</skip>
+                            <excludeDefaultDirectories>true</excludeDefaultDirectories>
+                            <filesets>
+                                <fileset>
+                                    <directory>${project.build.directory}/deps-${native.target.suffix}</directory>
+                                </fileset>
+                            </filesets>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
 
             <!-- Collect runtime JARs into target/deps/ for CAP cache generation.
@@ -511,16 +539,22 @@
         <profile>
             <id>dice-demo</id>
             <properties>
-                <native.main.class>dev.pux4j.ui.dice.demo.DiceDemoApp</native.main.class>
-                <native.image.name>pux4j-dice-demo-${native.target.suffix}</native.image.name>
+                <native.main.class>dev.pux4j.ui.launcher.EInkLauncher</native.main.class>
+                <native.image.name>pux4j-native-dice-demo-${native.target.suffix}</native.image.name>
                 <skip.native.build>false</skip.native.build>
-                <native.access.spec>javafx.graphics</native.access.spec>
-                <native.add.modules>dev.pux4j.ui.dice.demo</native.add.modules>
+                <!-- JavaFX is a named module and needs native access; the hat-* profiles add Pi4J FFM. -->
+                <native.access.spec>javafx.graphics${native.access.extra}</native.access.spec>
+                <native.add.modules>dev.pux4j.ui.launcher,dev.pux4j.ui.dice.demo${native.driver.modules}</native.add.modules>
             </properties>
             <dependencies>
                 <dependency>
                     <groupId>dev.pux4j.ui</groupId>
                     <artifactId>pux4j-dice-demo</artifactId>
+                    <version>${pux4j.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>dev.pux4j.ui</groupId>
+                    <artifactId>pux4j-launcher</artifactId>
                     <version>${pux4j.version}</version>
                 </dependency>
                 <dependency>
@@ -576,14 +610,32 @@
              Always combine with an app profile: -P smoke,hat-2in9v2 -->
 
         <!-- x86_64: native build on the local machine (no cross-compilation, no sysroot,
-             no CAP cache). Use with the demo profile: -P demo,x86_64 -->
+             no CAP cache). Use with an app profile: -P demo,x86_64 or -P dice-demo,x86_64.
+             The JavaFX emulator is the display/touch driver: it is a ServiceLoader provider
+             with no compile-time reference, so it is named in native.driver.modules. -->
         <profile>
             <id>x86_64</id>
             <properties>
                 <native.target.suffix>x86_64</native.target.suffix>
                 <javafx.classifier>linux</javafx.classifier>
                 <javafx.exclude.classifier>linux-aarch64</javafx.exclude.classifier>
+                <native.driver.modules>,dev.pux4j.ui.emulator</native.driver.modules>
             </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>dev.pux4j.ui</groupId>
+                    <artifactId>pux4j-emulator</artifactId>
+                    <version>${pux4j.version}</version>
+                    <!-- Its JavaFX deps resolve to the unclassified jars here; the app profile's
+                         classified deps provide the platform jars (see smoke-emulator). -->
+                    <exclusions>
+                        <exclusion>
+                            <groupId>org.openjfx</groupId>
+                            <artifactId>*</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+            </dependencies>
             <build>
                 <plugins>
                     <!-- CAP cache is aarch64-only; unbind the generation execution -->
@@ -633,7 +685,8 @@
             </build>
         </profile>
 
-        <!-- aarch64: cross-compile target for the demo app (no hardware driver).
+        <!-- aarch64: cross-compile target for the demo apps (no display driver, so the image
+             cannot show anything; use a hat-* profile for a runnable binary).
              The base pom already provides all cross-compile machinery (sysroot,
              target linux-aarch64, CAP cache); this profile only sets the suffix. -->
         <profile>
