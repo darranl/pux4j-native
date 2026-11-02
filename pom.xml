@@ -55,7 +55,7 @@
         <native.maven.plugin.version>0.11.4</native.maven.plugin.version>
         <exec.maven.plugin.version>3.5.0</exec.maven.plugin.version>
         <dependency.maven.plugin.version>3.8.1</dependency.maven.plugin.version>
-        <maven.compiler.version>3.13.0</maven.compiler.version>
+        <maven.compiler.version>3.16.0</maven.compiler.version>
         <graalvm.sdk.version>25.3.4.1</graalvm.sdk.version>
 
         <!-- JavaFX platform classifier: linux-aarch64 for cross-compile (default);
