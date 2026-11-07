@@ -2,7 +2,7 @@
 
 GraalVM native image builds for [pux4j](https://github.com/darranl/pux4j).
 
-Produces aarch64 native executables, one per application, cross-compiled on an x86_64 laptop using
+Produces aarch64 native executables, one per application, cross-compiled on an x86_64 Linux machine using
 the [graalvm-pi-builder](https://github.com/lofthouse-dev/graalvm-pi-builder) container image. The
 executables run on a Raspberry Pi without a JVM. The build and these instructions are tested on
 Arch Linux, x86_64; the target is Raspberry Pi OS 12 (Debian bookworm), 64-bit.
@@ -177,9 +177,9 @@ mvn package -P smoke,hat-2in9v2 -Dsysroot=<sysroot>     # normally done by scrip
 `target/pux4j-<app>-<hat>`, for example `target/pux4j-demo-hat-2in9v2`. `-Dpux4j.version=<v>`
 selects the `pux4j` artifacts.
 
-### Laptop only: emulator builds
+### Build machine only: emulator builds
 
-The emulator variants run on the laptop, not on a Pi; `deploy.sh` does not build them.
+The emulator variants run on the build machine, not on a Pi; `deploy.sh` does not build them.
 
 ```bash
 mvn package -P demo,x86_64 -DskipTests               # x86_64 native image, JavaFX emulator window

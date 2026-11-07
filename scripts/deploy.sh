@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cross-compile pux4j native images on a laptop and deploy them to a Raspberry Pi.
+# Cross-compile pux4j native images on an x86_64 Linux machine and deploy them to a Raspberry Pi.
 #
 # Each app is its own native image (smoke, validation, demo, dice-demo) and contains that app only.
 # The HAT is fixed when an image is built; build for the HAT that is on the Pi.
@@ -24,7 +24,7 @@
 #   --user <user>            ssh user (default: whatever ssh chooses)
 #   --dir <dir>              directory on the Pi that will contain the "pux4j-native" installation.
 #                            Relative paths are relative to the Pi user's home; a leading "~/" is
-#                            accepted (quote it, or the laptop shell expands the ~).
+#                            accepted (quote it, or your local shell expands the ~).
 #                            Default: applications  (installed to ~/applications/pux4j-native)
 #   --pux4j-version <v>      version of the pux4j artifacts to build against (default: the pom's)
 #   --repo <dir>             local Maven repository (default: ~/.m2/repository)
