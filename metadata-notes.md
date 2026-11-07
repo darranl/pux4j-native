@@ -174,13 +174,13 @@ from `pux4j-native/`.
 1. **GraalVM CE active, the pux4j project installed to the local Maven repository:**
    ```
    sdk use java 25.3.4-graalce
-   # in the pux4j project's root:  mvn install -DskipTests
+   # in the pux4j project's root:  mvn install
    ```
 
 2. **Populate `target/deps-<suffix>`** for the profile being traced (this is the exact
    module-path dependency set the native build itself will use):
    ```
-   mvn -P smoke-emulator,x86_64 -DskipTests prepare-package
+   mvn -P smoke-emulator,x86_64 prepare-package
    ```
 
 3. **Run the app directly under the tracing agent**, writing to a **scratch** directory (not

@@ -22,7 +22,7 @@
 #
 # Prerequisites:
 #   JAVA_HOME must point to GraalVM CE (sdk use java 25.3.4-graalce).
-#   the pux4j project must be installed to ~/.m2: run  mvn install -DskipTests  in its root
+#   the pux4j project must be installed to ~/.m2: run  mvn install  in its root
 #
 # What to exercise in the app:
 #   - Click the Increment button several times
@@ -75,7 +75,7 @@ fi
 if [[ "$FORCE_PREPARE" == "true" ]] || [[ ! -d "$DEPS_DIR" ]] || \
    [[ -z "$(ls -A "$DEPS_DIR" 2>/dev/null)" ]]; then
     echo "==> Preparing demo dependencies (mvn prepare-package)..."
-    (cd "$PROJECT_DIR" && mvn -P demo,x86_64 -DskipTests prepare-package -q)
+    (cd "$PROJECT_DIR" && mvn -P demo,x86_64 prepare-package -q)
 else
     echo "==> Using existing deps in $DEPS_DIR (pass --force-prepare to refresh)"
 fi
@@ -83,7 +83,7 @@ fi
 DEMO_JAR=$(ls "$DEPS_DIR"/pux4j-demo-*.jar 2>/dev/null | head -1)
 if [[ -z "$DEMO_JAR" ]]; then
     echo "ERROR: pux4j-demo JAR not found in $DEPS_DIR" >&2
-    echo "  Run: mvn -P demo,x86_64 -DskipTests prepare-package" >&2
+    echo "  Run: mvn -P demo,x86_64 prepare-package" >&2
     exit 1
 fi
 

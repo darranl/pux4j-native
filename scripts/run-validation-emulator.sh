@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # Run the native HardwareValidationTest against the JavaFX emulator (no hardware required).
 # Mouse click = touch down; mouse release = touch up.
-# Build first: cd pux4j-native && mvn -DskipTests package -P validation-emulator,x86_64
+# Build first: cd pux4j-native && mvn package -P validation-emulator,x86_64
 set -euo pipefail
 
 DISPLAY_PROFILE="ssd1675a"
 SCALE="3"
 EXTRA_ARGS=()
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-BINARY="$SCRIPT_DIR/target/pux4j-validation-emulator-x86_64"
+BINARY="$SCRIPT_DIR/../target/pux4j-validation-emulator-x86_64"
 
 usage() {
   cat <<'EOF'
 Usage:
-  ./run-validation-emulator.sh [--display=PROFILE] [--scale=N] [extra args...]
+  scripts/run-validation-emulator.sh [--display=PROFILE] [--scale=N] [extra args...]
 
 Options:
   --display=PROFILE   Display profile: ssd1675a (2.9" V2, default) or ssd1680 (2.13" V4)
@@ -21,7 +21,7 @@ Options:
   extra args          Passed through to HardwareValidationTest (e.g. --start-step 3)
 
 Build first:
-  cd pux4j-native && mvn -DskipTests package -P validation-emulator,x86_64
+  cd pux4j-native && mvn package -P validation-emulator,x86_64
 EOF
 }
 
@@ -46,7 +46,7 @@ esac
 
 if [[ ! -f "$BINARY" ]]; then
   echo "ERROR: $BINARY not found."
-  echo "       Build: cd pux4j-native && mvn -DskipTests package -P validation-emulator,x86_64"
+  echo "       Build: cd pux4j-native && mvn package -P validation-emulator,x86_64"
   exit 1
 fi
 

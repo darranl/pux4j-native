@@ -66,7 +66,7 @@ if [ "${_BUILD_PHASE:-}" = "1" ]; then
 
     for app in $_APPS; do
         echo "==> Building native image: $app for $_HAT"
-        mvn -f "$NATIVE_ROOT/pom.xml" package -DskipTests \
+        mvn -f "$NATIVE_ROOT/pom.xml" package \
             -P "${app},${_HAT}" \
             "-Dsysroot=$SYSROOT" \
             "-Dmaven.repo.local=${_MAVEN_REPO}" \
@@ -157,7 +157,7 @@ if [[ $SKIP_BUILD -eq 0 ]]; then
     if [[ $DRY_RUN -eq 0 ]]; then
         command -v podman &>/dev/null || { echo "ERROR: podman not found" >&2; exit 1; }
         podman image exists "$IMAGE" || { echo "ERROR: container image not found: $IMAGE" >&2
-                                         echo "       Pull it with: podman pull $IMAGE" >&2; exit 1; }
+                                         echo "       Pull it with: podman pull --platform=linux/arm64 $IMAGE" >&2; exit 1; }
         if [[ -z "${JAVA_HOME:-}" || ! -x "${JAVA_HOME}/bin/native-image" ]]; then
             echo "ERROR: JAVA_HOME must point to a GraalVM CE 25 installation (bin/native-image)" >&2
             exit 1

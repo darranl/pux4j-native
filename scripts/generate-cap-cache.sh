@@ -80,7 +80,7 @@ fi
 
 if ! podman image exists "$IMAGE_TAG"; then
     echo "ERROR: Container image not found: $IMAGE_TAG" >&2
-    echo "  Pull with: podman pull $IMAGE_TAG" >&2
+    echo "  Pull with: podman pull --platform=linux/arm64 $IMAGE_TAG" >&2
     exit 1
 fi
 
