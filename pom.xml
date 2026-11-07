@@ -50,7 +50,7 @@
         <!-- Set by target profile; UNKNOWN signals that the target profile is missing -->
         <native.target.suffix>UNKNOWN</native.target.suffix>
 
-        <!-- Cross-compile sysroot: set by deploy-native.sh via -Dsysroot=...
+        <!-- Cross-compile sysroot: set by scripts/deploy.sh via -Dsysroot=...
              Defaults to host root so the pom.xml is valid without the flag,
              though cross-compilation will produce an incorrect binary without it. -->
         <sysroot>/</sysroot>
@@ -328,7 +328,7 @@
             <id>smoke</id>
             <properties>
                 <native.main.class>dev.pux4j.ui.validation.DisplaySmokeTest</native.main.class>
-                <native.image.name>pux4j-smoke-test-${native.target.suffix}-native</native.image.name>
+                <native.image.name>pux4j-smoke-${native.target.suffix}</native.image.name>
                 <skip.native.build>false</skip.native.build>
             </properties>
             <!-- Compile-only: QuantumToolkitSubstitution imports javafx.application, and the unclassified
@@ -422,7 +422,7 @@
             <id>validation</id>
             <properties>
                 <native.main.class>dev.pux4j.ui.validation.HardwareValidationTest</native.main.class>
-                <native.image.name>pux4j-validation-test-${native.target.suffix}-native</native.image.name>
+                <native.image.name>pux4j-validation-${native.target.suffix}</native.image.name>
                 <skip.native.build>false</skip.native.build>
             </properties>
             <!-- Compile-only: QuantumToolkitSubstitution imports javafx.application, and the unclassified
@@ -668,7 +668,7 @@
             <id>demo</id>
             <properties>
                 <native.main.class>dev.pux4j.ui.launcher.EInkLauncher</native.main.class>
-                <native.image.name>pux4j-native-demo-${native.target.suffix}</native.image.name>
+                <native.image.name>pux4j-demo-${native.target.suffix}</native.image.name>
                 <skip.native.build>false</skip.native.build>
                 <!-- JavaFX is a named module and needs native access; the hat-* profiles add Pi4J FFM. -->
                 <native.access.spec>javafx.graphics${native.access.extra}</native.access.spec>
@@ -791,7 +791,7 @@
             <id>dice-demo</id>
             <properties>
                 <native.main.class>dev.pux4j.ui.launcher.EInkLauncher</native.main.class>
-                <native.image.name>pux4j-native-dice-demo-${native.target.suffix}</native.image.name>
+                <native.image.name>pux4j-dice-demo-${native.target.suffix}</native.image.name>
                 <skip.native.build>false</skip.native.build>
                 <!-- JavaFX is a named module and needs native access; the hat-* profiles add Pi4J FFM. -->
                 <native.access.spec>javafx.graphics${native.access.extra}</native.access.spec>

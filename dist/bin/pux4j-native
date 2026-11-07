@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# Run a natively compiled pux4j app on the attached e-paper display.
+#
+# Usage:
+#   pux4j-native --list
+#   pux4j-native <app> [<app args> ...] [-D<property>=<value> ...]
+#   pux4j-native -h | --help
+#
+# Each app is a separate native image in <installation>/lib/<app>; --list shows the ones installed.
+#   demo, dice-demo   JavaFX apps; extra arguments are ignored.
+#   smoke, validation non-JavaFX tests of the raw drivers; everything after the name is passed to
+#                     the test unchanged, e.g.  pux4j-native validation --start-step 3
+# <app> is the first argument that does not start with "-". It is optional while only one app is
+# installed. Exit codes: 0 success, 1 failure, 2 usage error (unknown or missing app).
+#
+# Options:
+#   -D<property>=<value>   system property for the app, e.g. -Dpux4j.display.width=250. Every other
+#                          argument goes to the app.
+#
+# Environment:
+#   DISPLAY   defaults to :0. The JavaFX apps (not smoke or validation) need a desktop session on
+#             the Pi even though nothing is shown on it, and DISPLAY must point at that session;
+#             export DISPLAY=:1 first if the desktop is on :1.
+#
+# Logs:
+#   Output goes to the terminal and to <installation>/logs/<app>.log, overwritten on every run of
+#   that app. --list and --help write no log. The installation directory is exported as PUX4J_HOME.
+set -euo pipefail
+
+SCRIPT_SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SCRIPT_SOURCE" ]; do
+  SCRIPT_DIR=$(cd -P "$(dirname "$SCRIPT_SOURCE")" && pwd)
+  SCRIPT_SOURCE=$(readlink "$SCRIPT_SOURCE")
+  [[ $SCRIPT_SOURCE != /* ]] && SCRIPT_SOURCE="$SCRIPT_DIR/$SCRIPT_SOURCE"
+done
+SCRIPT_DIR=$(cd -P "$(dirname "$SCRIPT_SOURCE")" && pwd)
+HOME_DIR=$(cd -P "$SCRIPT_DIR/.." && pwd)
+LIB_DIR="$HOME_DIR/lib"
+export PUX4J_HOME="$HOME_DIR"
+
+# Non-JavaFX driver tests have their own main and take no app name; every other image is the
+# generic launcher, which is told its app name (so a foreign app in an image is refused).
+kind_of() {
+  case "$1" in
+    smoke|validation) echo "driver test" ;;
+    *)                echo "JavaFX app" ;;
+  esac
+}
+
+installed_apps() {
+  local f
+  for f in "$LIB_DIR"/*; do
+    [ -f "$f" ] && [ -x "$f" ] && basename "$f"
+  done
+}
+
+print_list() {
+  local apps=() a
+  while IFS= read -r a; do apps+=("$a"); done < <(installed_apps)
+  if [ "${#apps[@]}" -eq 0 ]; then
+    echo "No apps are installed in $LIB_DIR" >&2
+    return
+  fi
+  echo "Installed apps:"
+  for a in "${apps[@]}"; do
+    printf '  %-12s %s\n' "$a" "$(kind_of "$a")"
+  done
+}
+
+case "${1:-}" in
+  -h|--help)
+    grep '^#' "$0" | sed 's/^# \?//' | sed '1d'
+    echo "Installation: $HOME_DIR"
+    exit 0 ;;
+esac
+
+PROP_ARGS=()  # -D options
+APP_ARGS=()   # the app's own arguments (everything else after the app name)
+APP_NAME=""   # first argument not starting with "-"
+LIST=0
+for arg in "$@"; do
+  case "$arg" in
+    -D*) PROP_ARGS+=("$arg") ;;
+    --list) LIST=1 ;;
+    *)   if [ -z "$APP_NAME" ] && [[ $arg != -* ]]; then APP_NAME="$arg"
+         else APP_ARGS+=("$arg"); fi ;;
+  esac
+done
+
+if [ "$LIST" -eq 1 ]; then
+  print_list
+  exit 0
+fi
+
+if [ -z "$APP_NAME" ]; then
+  mapfile -t ONLY < <(installed_apps)
+  if [ "${#ONLY[@]}" -eq 1 ]; then
+    APP_NAME="${ONLY[0]}"
+  else
+    echo "ERROR: no app given." >&2
+    print_list >&2
+    exit 2
+  fi
+fi
+
+if ! [[ $APP_NAME =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || [ ! -f "$LIB_DIR/$APP_NAME" ] || [ ! -x "$LIB_DIR/$APP_NAME" ]; then
+  echo "ERROR: unknown app '$APP_NAME'." >&2
+  print_list >&2
+  exit 2
+fi
+
+export DISPLAY="${DISPLAY:-:0}"
+
+CMD=("$LIB_DIR/$APP_NAME" ${PROP_ARGS[@]+"${PROP_ARGS[@]}"})
+if [ "$(kind_of "$APP_NAME")" = "JavaFX app" ]; then
+  CMD+=("$APP_NAME")        # the launcher ignores further arguments for JavaFX apps
+else
+  CMD+=(${APP_ARGS[@]+"${APP_ARGS[@]}"})
+fi
+
+mkdir -p "$HOME_DIR/logs"
+# pipefail makes the pipeline's status the app's status. tee -i ignores Ctrl-C so the app's
+# shutdown messages (after Ctrl-C reaches it) still reach the terminal and the log.
+"${CMD[@]}" 2>&1 | tee -i "$HOME_DIR/logs/$APP_NAME.log"
