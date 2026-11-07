@@ -12,16 +12,20 @@
     <name>pux4j :: Native Image Builds</name>
     <description>
         GraalVM native image builds for pux4j applications.
-        Depends on pux4j-ui JVM artifacts — run 'mvn install -DskipTests' on pux4j-ui first.
+        Depends on the pux4j JVM artifacts: build and install the pux4j project first.
 
         Invocation requires two profiles: one app profile and one target profile.
           mvn package -P smoke,hat-2in9v2          (aarch64 cross-compile)
           mvn package -P validation,hat-2in13v4    (aarch64 cross-compile)
           mvn package -P demo,x86_64               (x86_64 native, no sysroot, emulator driver)
           mvn package -P dice-demo,x86_64          (as above, dice demo)
-          mvn package -P demo,aarch64              (aarch64 cross-compile, no display driver)
 
-        For aarch64 targets the sysroot property must also be set (done by deploy-native.sh):
+        Each image contains exactly ONE application. The base dependencies hold no application
+        module; every app profile declares its own, and Maven Enforcer rules in the app and target
+        profiles fail the build if another application, the emulator (on a HAT build) or a second
+        HAT driver reaches the dependency tree or the module-path directory.
+
+        For aarch64 targets the sysroot property must also be set (done by the deploy script):
           mvn package -P smoke,hat-2in9v2 -Dsysroot=/path/to/aarch64/sysroot
     </description>
 
@@ -55,6 +59,7 @@
         <native.maven.plugin.version>0.11.4</native.maven.plugin.version>
         <exec.maven.plugin.version>3.5.0</exec.maven.plugin.version>
         <dependency.maven.plugin.version>3.8.1</dependency.maven.plugin.version>
+        <enforcer.maven.plugin.version>3.7.0</enforcer.maven.plugin.version>
         <maven.compiler.version>3.16.0</maven.compiler.version>
         <graalvm.sdk.version>25.3.4.1</graalvm.sdk.version>
 
@@ -94,20 +99,11 @@
     </repositories>
 
     <dependencies>
-        <!-- pux4j-ui modules: install pux4j-ui to local ~/.m2 first -->
+        <!-- Only the driver API is common to every image. Application modules (and what they bring
+             in) are declared by the app profiles, so one image can never carry another app. -->
         <dependency>
             <groupId>dev.pux4j.ui</groupId>
             <artifactId>pux4j-core</artifactId>
-            <version>${pux4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>dev.pux4j.ui</groupId>
-            <artifactId>pux4j-transform</artifactId>
-            <version>${pux4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>dev.pux4j.ui</groupId>
-            <artifactId>pux4j-validation</artifactId>
             <version>${pux4j.version}</version>
         </dependency>
 
@@ -238,6 +234,17 @@
                                  linux-aarch64 JARs end up in the directory, causing a module
                                  conflict on the module-path. -->
                             <excludeClassifiers>${javafx.exclude.classifier}</excludeClassifiers>
+                            <!-- NORMAL, NOT A PROBLEM: the directory holds javafx-base-<v>.jar and
+                                 javafx-controls-<v>.jar (about 300 bytes each) next to the
+                                 javafx-*-<v>-linux-aarch64.jar files. The small ones are the
+                                 placeholder artifacts OpenJFX publishes under the plain coordinates:
+                                 a manifest only, no classes and no module-info, so they declare no
+                                 module and cannot clash with the platform jars, which hold the real
+                                 modules and native libraries. Maven copies them because other
+                                 modules depend on the plain coordinates. Do not exclude them or
+                                 "fix" the duplicate. Real clashes (a second version of a module, or
+                                 jars of both architectures) are what excludeClassifiers and the
+                                 clean-deps execution above prevent. -->
                         </configuration>
                     </execution>
                 </executions>
@@ -329,6 +336,18 @@
                  deps-<target>/ (only runtime scope is copied), so this app still has no JavaFX in its image. -->
             <dependencies>
                 <dependency>
+                    <groupId>dev.pux4j.ui</groupId>
+                    <artifactId>pux4j-validation</artifactId>
+                    <version>${pux4j.version}</version>
+                    <!-- Brings the emulator in by default; a HAT image must not have it. -->
+                    <exclusions>
+                        <exclusion>
+                            <groupId>dev.pux4j.ui</groupId>
+                            <artifactId>pux4j-emulator</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+                <dependency>
                     <groupId>org.openjfx</groupId>
                     <artifactId>javafx-graphics</artifactId>
                     <version>${javafx.version}</version>
@@ -336,6 +355,67 @@
                     <scope>provided</scope>
                 </dependency>
             </dependencies>
+            <build>
+                <plugins>
+                    <!-- One application per image: see the project description. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <version>${enforcer.maven.plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>one-app-dependency-tree</id>
+                                <phase>validate</phase>
+                                <goals><goal>enforce</goal></goals>
+                                <configuration>
+                                    <rules>
+                                        <bannedDependencies>
+                                            <message>Another application or component would be built into this image.</message>
+                                            <searchTransitive>true</searchTransitive>
+                                            <excludes>
+                                                <exclude>dev.pux4j.ui:pux4j-fx</exclude>
+                                                <exclude>dev.pux4j.ui:pux4j-launcher</exclude>
+                                                <exclude>dev.pux4j.ui:pux4j-demo</exclude>
+                                                <exclude>dev.pux4j.ui:pux4j-dice-demo</exclude>
+                                                <exclude>dev.pux4j.ui:pux4j-bridge-smoke</exclude>
+                                                <exclude>dev.pux4j.ui:pux4j-emulator</exclude>
+                                                <exclude>org.openjfx:*:*:*:compile</exclude>
+                                                <exclude>org.openjfx:*:*:*:runtime</exclude>
+                                            </excludes>
+                                        </bannedDependencies>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>one-app-module-path</id>
+                                <phase>prepare-package</phase>
+                                <goals><goal>enforce</goal></goals>
+                                <configuration>
+                                    <rules>
+                                        <requireFilesExist>
+                                            <message>The module path directory lacks this image's own application.</message>
+                                            <files>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-validation-${pux4j.version}.jar</file>
+                                            </files>
+                                        </requireFilesExist>
+                                        <requireFilesDontExist>
+                                            <message>The module path directory holds a jar that must not be in this image.</message>
+                                            <files>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-fx-${pux4j.version}.jar</file>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-launcher-${pux4j.version}.jar</file>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-demo-${pux4j.version}.jar</file>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-dice-demo-${pux4j.version}.jar</file>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-bridge-smoke-${pux4j.version}.jar</file>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-emulator-${pux4j.version}.jar</file>
+                                            </files>
+                                        </requireFilesDontExist>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
 
         <profile>
@@ -350,6 +430,18 @@
                  deps-<target>/ (only runtime scope is copied), so this app still has no JavaFX in its image. -->
             <dependencies>
                 <dependency>
+                    <groupId>dev.pux4j.ui</groupId>
+                    <artifactId>pux4j-validation</artifactId>
+                    <version>${pux4j.version}</version>
+                    <!-- Brings the emulator in by default; a HAT image must not have it. -->
+                    <exclusions>
+                        <exclusion>
+                            <groupId>dev.pux4j.ui</groupId>
+                            <artifactId>pux4j-emulator</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+                <dependency>
                     <groupId>org.openjfx</groupId>
                     <artifactId>javafx-graphics</artifactId>
                     <version>${javafx.version}</version>
@@ -357,6 +449,67 @@
                     <scope>provided</scope>
                 </dependency>
             </dependencies>
+            <build>
+                <plugins>
+                    <!-- One application per image: see the project description. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <version>${enforcer.maven.plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>one-app-dependency-tree</id>
+                                <phase>validate</phase>
+                                <goals><goal>enforce</goal></goals>
+                                <configuration>
+                                    <rules>
+                                        <bannedDependencies>
+                                            <message>Another application or component would be built into this image.</message>
+                                            <searchTransitive>true</searchTransitive>
+                                            <excludes>
+                                                <exclude>dev.pux4j.ui:pux4j-fx</exclude>
+                                                <exclude>dev.pux4j.ui:pux4j-launcher</exclude>
+                                                <exclude>dev.pux4j.ui:pux4j-demo</exclude>
+                                                <exclude>dev.pux4j.ui:pux4j-dice-demo</exclude>
+                                                <exclude>dev.pux4j.ui:pux4j-bridge-smoke</exclude>
+                                                <exclude>dev.pux4j.ui:pux4j-emulator</exclude>
+                                                <exclude>org.openjfx:*:*:*:compile</exclude>
+                                                <exclude>org.openjfx:*:*:*:runtime</exclude>
+                                            </excludes>
+                                        </bannedDependencies>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>one-app-module-path</id>
+                                <phase>prepare-package</phase>
+                                <goals><goal>enforce</goal></goals>
+                                <configuration>
+                                    <rules>
+                                        <requireFilesExist>
+                                            <message>The module path directory lacks this image's own application.</message>
+                                            <files>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-validation-${pux4j.version}.jar</file>
+                                            </files>
+                                        </requireFilesExist>
+                                        <requireFilesDontExist>
+                                            <message>The module path directory holds a jar that must not be in this image.</message>
+                                            <files>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-fx-${pux4j.version}.jar</file>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-launcher-${pux4j.version}.jar</file>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-demo-${pux4j.version}.jar</file>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-dice-demo-${pux4j.version}.jar</file>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-bridge-smoke-${pux4j.version}.jar</file>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-emulator-${pux4j.version}.jar</file>
+                                            </files>
+                                        </requireFilesDontExist>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
             <!-- Resource bundle (dev.pux4j.ui.validation.messages) is registered in
                  augment/reachability-metadata.json and picked up automatically. -->
         </profile>
@@ -375,6 +528,18 @@
                 <native.add.modules>dev.pux4j.ui.validation,dev.pux4j.ui.emulator</native.add.modules>
             </properties>
             <dependencies>
+                <dependency>
+                    <groupId>dev.pux4j.ui</groupId>
+                    <artifactId>pux4j-validation</artifactId>
+                    <version>${pux4j.version}</version>
+                    <!-- Brings the emulator in by default; a HAT image must not have it. -->
+                    <exclusions>
+                        <exclusion>
+                            <groupId>dev.pux4j.ui</groupId>
+                            <artifactId>pux4j-emulator</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
                 <dependency>
                     <groupId>dev.pux4j.ui</groupId>
                     <artifactId>pux4j-emulator</artifactId>
@@ -438,6 +603,18 @@
                 <native.add.modules>dev.pux4j.ui.validation,dev.pux4j.ui.emulator</native.add.modules>
             </properties>
             <dependencies>
+                <dependency>
+                    <groupId>dev.pux4j.ui</groupId>
+                    <artifactId>pux4j-validation</artifactId>
+                    <version>${pux4j.version}</version>
+                    <!-- Brings the emulator in by default; a HAT image must not have it. -->
+                    <exclusions>
+                        <exclusion>
+                            <groupId>dev.pux4j.ui</groupId>
+                            <artifactId>pux4j-emulator</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
                 <dependency>
                     <groupId>dev.pux4j.ui</groupId>
                     <artifactId>pux4j-emulator</artifactId>
@@ -540,6 +717,56 @@
             </dependencies>
             <build>
                 <plugins>
+                    <!-- One application per image: see the project description. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <version>${enforcer.maven.plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>one-app-dependency-tree</id>
+                                <phase>validate</phase>
+                                <goals><goal>enforce</goal></goals>
+                                <configuration>
+                                    <rules>
+                                        <bannedDependencies>
+                                            <message>Another application or component would be built into this image.</message>
+                                            <searchTransitive>true</searchTransitive>
+                                            <excludes>
+                                                <exclude>dev.pux4j.ui:pux4j-dice-demo</exclude>
+                                                <exclude>dev.pux4j.ui:pux4j-validation</exclude>
+                                                <exclude>dev.pux4j.ui:pux4j-bridge-smoke</exclude>
+                                            </excludes>
+                                        </bannedDependencies>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>one-app-module-path</id>
+                                <phase>prepare-package</phase>
+                                <goals><goal>enforce</goal></goals>
+                                <configuration>
+                                    <rules>
+                                        <requireFilesExist>
+                                            <message>The module path directory lacks this image's own application.</message>
+                                            <files>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-demo-${pux4j.version}.jar</file>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-launcher-${pux4j.version}.jar</file>
+                                            </files>
+                                        </requireFilesExist>
+                                        <requireFilesDontExist>
+                                            <message>The module path directory holds a jar that must not be in this image.</message>
+                                            <files>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-dice-demo-${pux4j.version}.jar</file>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-validation-${pux4j.version}.jar</file>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-bridge-smoke-${pux4j.version}.jar</file>
+                                            </files>
+                                        </requireFilesDontExist>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
                     <!-- Add module-path so JavaFX JARs are named modules, not classpath.
                          combine.children="append" adds these args after the base args (which
                          carry the cross-compile flags for aarch64); the x86_64 profile replaces
@@ -613,6 +840,56 @@
             </dependencies>
             <build>
                 <plugins>
+                    <!-- One application per image: see the project description. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <version>${enforcer.maven.plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>one-app-dependency-tree</id>
+                                <phase>validate</phase>
+                                <goals><goal>enforce</goal></goals>
+                                <configuration>
+                                    <rules>
+                                        <bannedDependencies>
+                                            <message>Another application or component would be built into this image.</message>
+                                            <searchTransitive>true</searchTransitive>
+                                            <excludes>
+                                                <exclude>dev.pux4j.ui:pux4j-demo</exclude>
+                                                <exclude>dev.pux4j.ui:pux4j-validation</exclude>
+                                                <exclude>dev.pux4j.ui:pux4j-bridge-smoke</exclude>
+                                            </excludes>
+                                        </bannedDependencies>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>one-app-module-path</id>
+                                <phase>prepare-package</phase>
+                                <goals><goal>enforce</goal></goals>
+                                <configuration>
+                                    <rules>
+                                        <requireFilesExist>
+                                            <message>The module path directory lacks this image's own application.</message>
+                                            <files>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-dice-demo-${pux4j.version}.jar</file>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-launcher-${pux4j.version}.jar</file>
+                                            </files>
+                                        </requireFilesExist>
+                                        <requireFilesDontExist>
+                                            <message>The module path directory holds a jar that must not be in this image.</message>
+                                            <files>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-demo-${pux4j.version}.jar</file>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-validation-${pux4j.version}.jar</file>
+                                                <file>${project.build.directory}/deps-${native.target.suffix}/pux4j-bridge-smoke-${pux4j.version}.jar</file>
+                                            </files>
+                                        </requireFilesDontExist>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
                     <plugin>
                         <groupId>org.graalvm.buildtools</groupId>
                         <artifactId>native-maven-plugin</artifactId>
@@ -709,18 +986,6 @@
             </build>
         </profile>
 
-        <!-- aarch64: cross-compile target for the demo apps (no display driver, so the image
-             cannot show anything; use a hat-* profile for a runnable binary).
-             The base pom already provides all cross-compile machinery (sysroot,
-             target linux-aarch64, CAP cache); this profile only sets the suffix. -->
-        <profile>
-            <id>aarch64</id>
-            <properties>
-                <native.target.suffix>aarch64</native.target.suffix>
-                <javafx.exclude.classifier>linux</javafx.exclude.classifier>
-            </properties>
-        </profile>
-
         <profile>
             <id>hat-2in9v2</id>
             <properties>
@@ -737,6 +1002,35 @@
                     <version>${pux4j.version}</version>
                 </dependency>
             </dependencies>
+            <build>
+                <plugins>
+                    <!-- A HAT image has this HAT's driver only: no emulator, no other HAT. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <version>${enforcer.maven.plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>one-hat-dependency-tree</id>
+                                <phase>validate</phase>
+                                <goals><goal>enforce</goal></goals>
+                                <configuration>
+                                    <rules>
+                                        <bannedDependencies>
+                                            <message>The emulator or another HAT driver would be built into this image.</message>
+                                            <searchTransitive>true</searchTransitive>
+                                            <excludes>
+                                                <exclude>dev.pux4j.ui:pux4j-emulator</exclude>
+                                                <exclude>dev.pux4j.ui:pux4j-driver-hat-2in13v4</exclude>
+                                            </excludes>
+                                        </bannedDependencies>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
 
         <profile>
@@ -755,6 +1049,35 @@
                     <version>${pux4j.version}</version>
                 </dependency>
             </dependencies>
+            <build>
+                <plugins>
+                    <!-- A HAT image has this HAT's driver only: no emulator, no other HAT. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <version>${enforcer.maven.plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>one-hat-dependency-tree</id>
+                                <phase>validate</phase>
+                                <goals><goal>enforce</goal></goals>
+                                <configuration>
+                                    <rules>
+                                        <bannedDependencies>
+                                            <message>The emulator or another HAT driver would be built into this image.</message>
+                                            <searchTransitive>true</searchTransitive>
+                                            <excludes>
+                                                <exclude>dev.pux4j.ui:pux4j-emulator</exclude>
+                                                <exclude>dev.pux4j.ui:pux4j-driver-hat-2in9v2</exclude>
+                                            </excludes>
+                                        </bannedDependencies>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 </project>
