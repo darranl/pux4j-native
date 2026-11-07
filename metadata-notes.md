@@ -210,8 +210,7 @@ from `pux4j-native/`.
      --enable-native-access=javafx.graphics \
      -agentlib:native-image-agent=config-merge-dir=target/generated-metadata-emulator \
      -Dpux4j.emulator.display=ssd1675a -Dpux4j.emulator.scale=3 \
-     -m dev.pux4j.ui.validation/dev.pux4j.ui.validation.HardwareValidationTest \
-     --touch-native-width 296 --touch-native-height 128
+     -m dev.pux4j.ui.validation/dev.pux4j.ui.validation.HardwareValidationTest
    ```
    (This second run covers touch/mouse handling that the smoke test alone doesn't exercise.)
 
