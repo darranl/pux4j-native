@@ -3,7 +3,11 @@
 Native images of the [pux4j](https://github.com/darranl/pux4j) apps, to run on a Raspberry Pi without Java.
 
 `pux4j` shows JavaFX apps on WaveShare eInk displays (see its README for what it is and for the four
-demo apps). Its apps normally run on a Java runtime. This project builds each app instead as a
+demo apps). The displays come as a **HAT** ("Hardware Attached on Top"): an add-on board that plugs onto
+the Raspberry Pi's pins. Here a HAT is a WaveShare eInk display with a touch screen, and two are
+supported: the 2.9" Touch e-Paper HAT (V2) and the 2.13" Touch e-Paper HAT (V4).
+
+The `pux4j` apps normally run on a Java runtime. This project builds each app instead as a
 **native image**: one ordinary executable file that runs on a Raspberry Pi with no Java installed.
 You build the images on an x86_64 Linux machine and copy them to the Pi. The build and these
 instructions are tested on Arch Linux, x86_64; the target is Raspberry Pi OS 12 (Debian bookworm),
