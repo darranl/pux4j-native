@@ -5,11 +5,14 @@ GraalVM native image builds for [pux4j](https://github.com/darranl/pux4j).
 Produces aarch64 native executables, one per application, cross-compiled on an x86_64 Linux machine using
 the [graalvm-pi-builder](https://github.com/lofthouse-dev/graalvm-pi-builder) container image. The
 executables run on a Raspberry Pi without a JVM. The build and these instructions are tested on
-Arch Linux, x86_64; the target is Raspberry Pi OS 12 (Debian bookworm), 64-bit.
+Arch Linux, x86_64; the target is Raspberry Pi OS 12 (Debian bookworm), 64-bit. Building a native image on
+the Raspberry Pi itself is not supported yet; the images are built on the x86_64 machine and copied to the Pi.
 
 ## Apps and HATs
 
-Each app is its own native image and contains that app only.
+Each app is its own native image and contains that app only. The apps are the same four that `pux4j` ships;
+[The four demo apps](https://github.com/darranl/pux4j#the-four-demo-apps) in its README describes them and
+shows what they look like.
 
 | App | What it is |
 |---|---|
@@ -26,6 +29,9 @@ The HAT is chosen when you build, not detected on the Pi. Build for the HAT that
 | 2.13" Touch e-Paper HAT (V4) — SSD1680 display, GT1151Q touch | `hat-2in13v4` | Raspberry Pi Zero 2 W |
 
 A mismatch does not produce an error: the panel simply shows nothing sensible.
+
+The target names here, `hat-2in9v2` and `hat-2in13v4`, are the Maven profiles of this project. The JVM bundles
+in `pux4j` use the profiles `bundle-hat-2in9v2` and `bundle-hat-2in13v4` for the same two HATs.
 
 ## Relationship to pux4j
 
