@@ -324,6 +324,18 @@
                 <native.image.name>pux4j-smoke-test-${native.target.suffix}-native</native.image.name>
                 <skip.native.build>false</skip.native.build>
             </properties>
+            <!-- Compile-only: QuantumToolkitSubstitution imports javafx.application, and the unclassified
+                 javafx-graphics jar above holds no classes. provided scope keeps the platform jar out of
+                 deps-<target>/ (only runtime scope is copied), so this app still has no JavaFX in its image. -->
+            <dependencies>
+                <dependency>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-graphics</artifactId>
+                    <version>${javafx.version}</version>
+                    <classifier>${javafx.classifier}</classifier>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
         </profile>
 
         <profile>
@@ -333,6 +345,18 @@
                 <native.image.name>pux4j-validation-test-${native.target.suffix}-native</native.image.name>
                 <skip.native.build>false</skip.native.build>
             </properties>
+            <!-- Compile-only: QuantumToolkitSubstitution imports javafx.application, and the unclassified
+                 javafx-graphics jar above holds no classes. provided scope keeps the platform jar out of
+                 deps-<target>/ (only runtime scope is copied), so this app still has no JavaFX in its image. -->
+            <dependencies>
+                <dependency>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-graphics</artifactId>
+                    <version>${javafx.version}</version>
+                    <classifier>${javafx.classifier}</classifier>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
             <!-- Resource bundle (dev.pux4j.ui.validation.messages) is registered in
                  augment/reachability-metadata.json and picked up automatically. -->
         </profile>
