@@ -33,7 +33,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>25</maven.compiler.release>
 
-        <!-- Keep in sync with pux4j-ui/pom.xml -->
+        <!-- Default version of the pux4j artifacts; override with the pux4j.version property (scripts/deploy.sh passes it on) -->
         <pux4j.version>0.1.0-SNAPSHOT</pux4j.version>
         <pi4j.version>4.0.2</pi4j.version>
         <javafx.version>23.0.1</javafx.version>
@@ -296,7 +296,7 @@
                         <!-- Required when cross-compiling to aarch64 on x86_64:
                              fixes ClassCastException in ForeignFunctionsFeature. -->
                         <buildArg>-J-Djdk.internal.foreign.CABI=LINUX_AARCH_64</buildArg>
-                        <!-- pux4j-ui is compiled with enable-preview;
+                        <!-- pux4j is compiled with enable-preview;
                              native-image must be able to process those class files. -->
                         <buildArg>-J--enable-preview</buildArg>
                         <buildArg>--enable-preview</buildArg>
@@ -959,7 +959,7 @@
                         <artifactId>native-maven-plugin</artifactId>
                         <configuration>
                             <buildArgs combine.self="override">
-                                <!-- pux4j-ui is compiled with enable-preview;
+                                <!-- pux4j is compiled with enable-preview;
                                      native-image must process those class files. -->
                                 <buildArg>-J--enable-preview</buildArg>
                                 <buildArg>--enable-preview</buildArg>

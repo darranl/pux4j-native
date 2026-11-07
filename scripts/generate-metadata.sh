@@ -22,7 +22,7 @@
 #
 # Prerequisites:
 #   JAVA_HOME must point to GraalVM CE (sdk use java 25.3.4-graalce).
-#   pux4j-ui must be installed to ~/.m2: cd pux4j-ui && mvn install -DskipTests
+#   the pux4j project must be installed to ~/.m2: run  mvn install -DskipTests  in its root
 #
 # What to exercise in the app:
 #   - Click the Increment button several times

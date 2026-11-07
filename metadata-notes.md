@@ -26,8 +26,8 @@ It is not affected by anything below.
    on real Pi hardware in May 2026 — no tracing run on x86_64 reproduces these, because the
    aarch64 SW rendering path is never exercised on x86_64 (which uses ES2/GPU instead), **plus**
 3. Re-registering the ~212 ES2 shader loader classes for the dice demo (currently brute-forced
-   in via a one-off extraction script, not tracked as a repeatable process — see W2 in
-   `notes/project-plan.md`'s Technical Debt table).
+   in via a one-off extraction script, not tracked as a repeatable process — see "Dice demo
+   additions" below).
 
 In short: full reconstruction from scratch is a multi-session effort involving real hardware,
 not a `mvn generate-metadata` command. This document is the closest thing to a recreation
@@ -45,18 +45,17 @@ base JavaFX reflection entries (Glass, Prism, font handling, etc.).
 
 ### Dice demo additions — ES2 shaders and the Circle entry (2026-05-22)
 
-Building `pux4j-dice-demo`'s native image surfaced two more workarounds, tracked as tech debt:
+Building `pux4j-dice-demo`'s native image surfaced two more workarounds, both still open:
 
-- **W7** — `javafx.scene.shape.Circle` was hand-added directly to this file (a bare
+- `javafx.scene.shape.Circle` was hand-added directly to this file (a bare
   `{"type": "javafx.scene.shape.Circle"}` entry) because the tracing agent was never re-run
-  after `DieView` started using `Circle`. Still outstanding — see `notes/project-plan.md`.
-- **W2** — the dice demo's styled layout (`HBox`/`VBox`, CSS backgrounds/borders) triggers ES2
+  after `DieView` started using `Circle`. Still outstanding.
+- the dice demo's styled layout (`HBox`/`VBox`, CSS backgrounds/borders) triggers ES2
   shader loading via `Class.forName("com.sun.prism.shader.Xxx_Loader")` for shaders the tracing
   agent's simpler counter-demo run never exercised. All 212 `*_Loader` classes and 227 `.frag`
   resource files were brute-force registered by extracting the full list from
-  `javafx-graphics-23.0.1-linux.jar` directly, rather than captured organically. See diary.md
-  2026-05-22 for the full account, including why `DieView` uses `Pane`+`Rectangle` instead of
-  `Canvas` to avoid needing the Canvas-specific shaders in this set (W1).
+  `javafx-graphics-23.0.1-linux.jar` directly, rather than captured organically. `DieView` uses `Pane`+`Rectangle` instead of
+  `Canvas` to avoid needing the Canvas-specific shaders in this set.
 
 ### aarch64 hardware entries — Pisces SW renderer, JNI, SSE peers (2026-05-21)
 
@@ -64,7 +63,7 @@ The tracing agent only ever runs on x86_64, where JavaFX uses the ES2/GPU render
 aarch64 (the actual Pi hardware), JavaFX falls back to the Pisces **software** renderer, which
 is a completely different code path with its own JNI/reflection needs that no x86_64 trace can
 capture. These were found by an iterative crash-log-fix cycle running the native binary
-directly on `diamondpi` (Pi 500+):
+directly on a Raspberry Pi 500+:
 
 - 5 JDK exception classes (`ArrayIndexOutOfBoundsException`, `IllegalArgumentException`,
   `IllegalStateException`, `NullPointerException`, `OutOfMemoryError`) with `jniAccessible: true`
@@ -78,18 +77,15 @@ directly on `diamondpi` (Pi 500+):
   `SSELinearConvolveShadowPeer`) — needed for DropShadow/effects to render on aarch64's
   NEON-backed SSE path.
 
-Full technical detail, including exact native source references in the OpenJFX checkout, is in
-`diary.md` under `## 2026-05-21`.
-
 ### PNG icon resources — kept in `augment/`, not here (2026-05-29)
 
 The validation test's PNG icons are registered as unqualified `glob` resource entries in
 `augment/reachability-metadata.json` (no `"module"` field — the native builds that need them
-use classpath mode, where module-qualified entries don't match). See diary.md 2026-05-29.
+use classpath mode, where module-qualified entries don't match).
 
 ### Emulator additions — Canvas + Logback + Pi4J/PNG fallback (2026-08-30)
 
-See "Recreation procedure" below — this is the process used tonight to add
+See "Recreation procedure" below — this is the process used on 2026-08-30 to add
 `smoke-emulator`/`validation-emulator` native image support, and the template for adding
 any future app/profile.
 
@@ -161,7 +157,7 @@ Base entries are never dropped or reordered, only extended — so a single app/p
 previously-captured coverage (hardware-only FFM downcalls, a different app's FXML resources,
 etc.) the way a plain overwrite did. `generate-metadata.sh` is now safe to re-run after every
 relevant change without manual JSON editing — see its own header comment for the current
-behavior. Was tracked as **W12** in `notes/project-plan.md`'s Technical Debt table; now closed.
+behavior. This used to be a known problem and is now closed.
 
 A second, unrelated bug in the old `MergeMetadata.java` (line ~130: `cfg.getJsonArray("bundles",
 JsonValue.EMPTY_JSON_ARRAY)` — `JsonObject.getJsonArray` has no such 2-argument overload in
@@ -170,15 +166,15 @@ legacy-format code path no longer exists in the rewritten tool.
 
 ## Recreation procedure — adding coverage for a new app/profile
 
-This is what was actually done tonight to fix `smoke-emulator`/`validation-emulator`'s
+This is what was actually done on 2026-08-30 to fix `smoke-emulator`/`validation-emulator`'s
 `ClassNotFoundException: javafx.scene.canvas.Canvas` at native-image runtime. Use it as the
 template for any future app/profile that needs new metadata coverage. All commands below run
 from `pux4j-native/`.
 
-1. **GraalVM CE active, `pux4j-ui` installed:**
+1. **GraalVM CE active, the pux4j project installed to the local Maven repository:**
    ```
    sdk use java 25.3.4-graalce
-   cd ../pux4j-ui && mvn install -DskipTests && cd -
+   # in the pux4j project's root:  mvn install -DskipTests
    ```
 
 2. **Populate `target/deps-<suffix>`** for the profile being traced (this is the exact
@@ -233,14 +229,14 @@ from `pux4j-native/`.
 8. **Manually append** the new entries into the real file's `reflection` array (never overwrite
    the whole file). Commit with a message describing what app/profile was traced and why.
 
-### What this captured tonight
+### What the 2026-08-30 run captured
 
 22 new reflection entries, all additive:
 
 - `javafx.scene.canvas.Canvas` — the actual fix for the `ClassNotFoundException` that started
   this investigation. `EInkEmulatorWindow` is the first code in this project to use `Canvas`
   directly in a way that reached native-image runtime (the dice demo deliberately avoids it —
-  see W1 above).
+  see the dice demo notes above).
 - ~11 Logback classes (`PatternLayoutEncoder`, `ConsoleAppender`, `DateConverter` and other
   pattern converters, `DefaultJoranConfigurator`, etc.) — needed for Logback's Joran XML config
   parser to build the logging pipeline reflectively at startup. Apparently never fully
