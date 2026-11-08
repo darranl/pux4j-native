@@ -142,10 +142,10 @@ From the root of this project:
 
 ```bash
 mvn package -P demo,x86_64                    # build the counter as an x86_64 native image
-target/pux4j-demo-x86_64                      # run it: the emulator window opens
+scripts/run-demo-emulator.sh                  # run it: the emulator window opens
 
 mvn package -P dice-demo,x86_64
-target/pux4j-dice-demo-x86_64 --list
+scripts/run-dice-demo-emulator.sh             # the same options: --display=ssd1680, --scale=N
 
 mvn package -P smoke-emulator,x86_64          # the smoke and validation tests, against the emulator
 scripts/run-smoke-emulator.sh                 # --display=ssd1680 for the 2.13" panel, --scale=N to zoom
