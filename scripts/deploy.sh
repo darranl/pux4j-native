@@ -112,7 +112,8 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-[[ -n "$TARGET_HOST" ]] || die "<host> is required (see --help)"
+# No <host> (no arguments, or options only): show the help rather than a one-line error.
+if [[ -z "$TARGET_HOST" ]]; then usage; exit 2; fi
 [[ -n "$HAT" ]]         || die "<hat> is required: hat-2in9v2 or hat-2in13v4 (see --help)"
 HAT="hat-${HAT#hat-}"
 case "$HAT" in

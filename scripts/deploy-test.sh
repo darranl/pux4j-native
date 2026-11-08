@@ -54,6 +54,7 @@ PUX="$INST/bin/pux4j-native"
 
 # --- usage errors: exit 2 ----------------------------------------------------------
 run >/dev/null 2>&1;                         rc_is $? 2 "no arguments: exit 2"
+run 2>&1 | grep -q "^Usage:";             rc_is ${PIPESTATUS[1]} 0 "no arguments: prints the usage"
 run pi >/dev/null 2>&1;                      rc_is $? 2 "no hat: exit 2"
 run pi 2in9v2 >/dev/null 2>&1;               rc_is $? 2 "no app: exit 2"
 run pi 7in5 smoke >/dev/null 2>&1;           rc_is $? 2 "unknown hat: exit 2"
